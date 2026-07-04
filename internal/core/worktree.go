@@ -1,0 +1,138 @@
+package core
+
+import (
+	"path/filepath"
+	"strings"
+)
+
+// Worktree is one entry from `git worktree list --porcelain`.
+type Worktree struct {
+	Path       string
+	Head       string
+	Branch     string // short branch name; empty when detached
+	IsMain     bool
+	Bare       bool
+	Detached   bool
+	Locked     bool
+	LockReason string
+	Prunable   bool
+}
+
+// Worktrees lists all worktrees of the repository; the main worktree is
+// always the first entry.
+func (r *Repo) Worktrees() ([]Worktree, error) {
+	out, err := Git(r.MainPath, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	return parseWorktreeList(out), nil
+}
+
+func parseWorktreeList(out string) []Worktree {
+	var wts []Worktree
+	var cur *Worktree
+	flush := func() {
+		if cur != nil {
+			wts = append(wts, *cur)
+			cur = nil
+		}
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" {
+			flush()
+			continue
+		}
+		key, val, _ := strings.Cut(line, " ")
+		if key == "worktree" {
+			flush()
+			cur = &Worktree{Path: val}
+			continue
+		}
+		if cur == nil {
+			continue
+		}
+		switch key {
+		case "HEAD":
+			cur.Head = val
+		case "branch":
+			cur.Branch = strings.TrimPrefix(val, "refs/heads/")
+		case "bare":
+			cur.Bare = true
+		case "detached":
+			cur.Detached = true
+		case "locked":
+			cur.Locked = true
+			cur.LockReason = val
+		case "prunable":
+			cur.Prunable = true
+		}
+	}
+	flush()
+	if len(wts) > 0 {
+		wts[0].IsMain = true
+	}
+	return wts
+}
+
+// Name is the worktree's display name: its path relative to the .worktrees
+// dir for conforming worktrees, otherwise the directory's base name.
+func (r *Repo) WorktreeName(w Worktree) string {
+	if w.IsMain {
+		return r.Name()
+	}
+	if rel, err := filepath.Rel(r.WorktreesDir(), w.Path); err == nil && isRelInside(rel) {
+		return rel
+	}
+	return filepath.Base(w.Path)
+}
+
+// AddWorktree creates a worktree at path. With createBranch it creates branch
+// from baseRef; otherwise it checks out the existing branch.
+func (r *Repo) AddWorktree(path, branch, baseRef string, createBranch bool) error {
+	args := []string{"worktree", "add"}
+	if createBranch {
+		args = append(args, "-b", branch, path, baseRef)
+	} else {
+		args = append(args, path, branch)
+	}
+	_, err := Git(r.MainPath, args...)
+	return err
+}
+
+// RemoveWorktree removes the worktree at path. force is required when the
+// worktree has modifications the caller has already dealt with (stashed or
+// chosen to discard). The branch is never touched.
+func (r *Repo) RemoveWorktree(path string, force bool) error {
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, path)
+	_, err := Git(r.MainPath, args...)
+	return err
+}
+
+// MoveWorktree relocates a worktree directory.
+func (r *Repo) MoveWorktree(oldPath, newPath string) error {
+	_, err := Git(r.MainPath, "worktree", "move", oldPath, newPath)
+	return err
+}
+
+// PruneWorktrees drops stale administrative entries for deleted directories.
+func (r *Repo) PruneWorktrees() error {
+	_, err := Git(r.MainPath, "worktree", "prune")
+	return err
+}
+
+// Stash saves all changes (including untracked files) of the worktree at
+// path into the repository-wide stash, where they survive worktree removal.
+func Stash(path, message string) error {
+	_, err := Git(path, "stash", "push", "--include-untracked", "-m", message)
+	return err
+}
+
+// SanitizeBranchName turns a branch name into a flat directory name:
+// "feature/login" -> "feature-login".
+func SanitizeBranchName(branch string) string {
+	return strings.ReplaceAll(strings.Trim(branch, "/"), "/", "-")
+}

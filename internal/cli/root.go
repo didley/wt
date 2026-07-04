@@ -1,0 +1,87 @@
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/didley/wt/internal/core"
+	"github.com/spf13/cobra"
+)
+
+// version is overridden at release time via -ldflags "-X ...cli.version=".
+var version = "dev"
+
+var noInput bool
+
+var rootCmd = &cobra.Command{
+	Use:   "wt",
+	Short: "Ergonomic git worktrees",
+	Long: `wt keeps every worktree of a repository in one predictable place —
+a sibling directory named <repo>.worktrees/ — and makes creating,
+listing, switching, renaming and removing worktrees painless.
+
+Run wt with no arguments to list the worktrees of the current repo.`,
+	Version:       version,
+	Args:          cobra.NoArgs,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		conventionCheck(cmd)
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runList()
+	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "never prompt; fail or warn instead")
+	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, shellInitCmd)
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		if errors.Is(err, errAborted) {
+			fmt.Fprintln(os.Stderr, "Aborted — nothing was changed.")
+		} else {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
+		os.Exit(1)
+	}
+}
+
+// conventionCheck runs before every repo-touching command: it detects
+// worktrees living outside <repo>.worktrees/ (e.g. created with raw
+// `git worktree add`) and offers to move them into place.
+func conventionCheck(cmd *cobra.Command) {
+	switch cmd.Name() {
+	case "doctor", "shell-init", "help", "completion", "version", "__complete", "__completeNoDesc":
+		return
+	}
+	if p := cmd.Parent(); p != nil && p.Name() == "completion" {
+		return
+	}
+	repo, err := core.Discover(".")
+	if err != nil {
+		return // each command reports its own "not a repo" error
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return
+	}
+	vs := repo.Violations(wts)
+	if len(vs) == 0 {
+		return
+	}
+	warnf("%d worktree(s) live outside %s:", len(vs), repo.WorktreesDir())
+	for _, v := range vs {
+		fmt.Fprintf(os.Stderr, "    %s\n", v.Worktree.Path)
+	}
+	if !interactive() {
+		warnf("run `wt doctor` to move them into place.")
+		fmt.Fprintln(os.Stderr)
+		return
+	}
+	moveViolations(repo, vs, true)
+	fmt.Fprintln(os.Stderr)
+}
