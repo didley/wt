@@ -22,15 +22,17 @@ Install it by adding one line to your shell's rc file:
 	Args:      cobra.ExactArgs(1),
 	ValidArgs: []string{"bash", "zsh", "fish"},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var script string
 		switch args[0] {
 		case "bash", "zsh":
-			io.WriteString(os.Stdout, posixWrapper)
+			script = posixWrapper
 		case "fish":
-			io.WriteString(os.Stdout, fishWrapper)
+			script = fishWrapper
 		default:
 			return fmt.Errorf("unsupported shell %q (bash, zsh and fish are supported)", args[0])
 		}
-		return nil
+		_, err := io.WriteString(os.Stdout, script)
+		return err
 	},
 }
 

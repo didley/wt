@@ -1,0 +1,47 @@
+version: 2
+
+project_name: wt
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/wt
+    binary: wt
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/didley/wt/internal/cli.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+
+# Publishes the `wt-cli` formula to didley/homebrew-tap. A formula (not a
+# cask) is used on purpose: casks are macOS-only, and the CLI must install
+# through Linuxbrew too. goreleaser deprecates `brews` in favor of
+# `homebrew_casks`, but the replacement can't cover Linux — stay on `brews`
+# until goreleaser offers a Linux-capable alternative.
+brews:
+  - name: wt-cli
+    repository:
+      owner: didley
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/didley/wt
+    description: "Ergonomic git worktrees: create, list, switch, rename, remove"
+    license: MIT
+    install: |
+      bin.install "wt"
+      generate_completions_from_executable(bin/"wt", "completion")
+    test: |
+      system "#{bin}/wt", "--version"
