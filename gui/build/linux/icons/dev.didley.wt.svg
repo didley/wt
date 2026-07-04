@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- rounded background -->
+  <rect x="4" y="4" width="120" height="120" rx="26" fill="#1c1f26"/>
+  <rect x="4" y="4" width="120" height="120" rx="26" fill="none" stroke="#313644" stroke-width="2"/>
+  <!-- main trunk -->
+  <path d="M44 96 V44" stroke="#4f8cff" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- branch curving out of the trunk: a worktree -->
+  <path d="M44 68 C44 52, 84 60, 84 44" stroke="#4fbf7a" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- nodes -->
+  <circle cx="44" cy="96" r="11" fill="#4f8cff"/>
+  <circle cx="44" cy="36" r="11" fill="#4f8cff"/>
+  <circle cx="84" cy="36" r="11" fill="#4fbf7a"/>
+  <circle cx="44" cy="96" r="5" fill="#14161a"/>
+  <circle cx="44" cy="36" r="5" fill="#14161a"/>
+  <circle cx="84" cy="36" r="5" fill="#14161a"/>
+</svg>

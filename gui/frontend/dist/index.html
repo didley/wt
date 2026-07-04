@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wt — git worktrees</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="sidebar-head">
+        <span class="logo">wt</span>
+        <button id="open-repo" class="btn primary" title="Open a git repository">Open repo…</button>
+      </div>
+      <nav id="recents"></nav>
+    </aside>
+
+    <main id="main">
+      <div id="empty-state">
+        <h1>wt</h1>
+        <p>git worktrees, ergonomically.</p>
+        <p>Open a repository to see its worktrees. They all live in one
+           predictable place: <code>&lt;repo&gt;.worktrees/</code>, right next
+           to the main checkout.</p>
+        <button class="btn primary" onclick="document.getElementById('open-repo').click()">Open a repository</button>
+      </div>
+
+      <div id="repo-view" hidden>
+        <header id="repo-header">
+          <div>
+            <h1 id="repo-name"></h1>
+            <p id="repo-path" class="muted"></p>
+          </div>
+          <button id="new-worktree" class="btn primary">New worktree</button>
+        </header>
+
+        <div id="stray-banner" class="banner" hidden>
+          <div>
+            <strong id="stray-text"></strong>
+            <p class="muted">wt keeps all worktrees in <span id="stray-dir" class="mono"></span> so they're easy to find. Moving them is safe: git updates its bookkeeping for you.</p>
+          </div>
+          <button id="move-strays" class="btn warn">Move them into place</button>
+        </div>
+
+        <section id="worktrees"></section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create -->
+  <dialog id="dlg-create">
+    <form method="dialog">
+      <h2>New worktree</h2>
+      <label>Branch
+        <input id="create-branch" list="branch-options" placeholder="feature/thing" autocomplete="off" required />
+        <datalist id="branch-options"></datalist>
+      </label>
+      <p id="create-hint" class="muted"></p>
+      <label id="create-base-label">Base ref
+        <input id="create-base" autocomplete="off" />
+        <span class="muted small">The commit the new branch starts from.</span>
+      </label>
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="create-confirm" value="ok" class="btn primary">Create worktree</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Remove -->
+  <dialog id="dlg-remove">
+    <form method="dialog">
+      <h2>Remove worktree <span id="remove-name" class="mono"></span>?</h2>
+      <p id="remove-branch-note" class="notice"></p>
+
+      <div id="remove-dirty" hidden>
+        <p><strong>It has uncommitted changes:</strong></p>
+        <ul id="remove-changes" class="changes"></ul>
+        <label class="radio"><input type="radio" name="remove-action" value="stash" checked />
+          <span><strong>Stash them</strong> — saved in the repo's stash, recover anytime with <code>git stash pop</code>. The stash lives in the repo, not the worktree.</span></label>
+        <label class="radio"><input type="radio" name="remove-action" value="discard" />
+          <span><strong>Discard them</strong> — permanently deletes the changes listed above.</span></label>
+      </div>
+
+      <div id="remove-branch-opts">
+        <label class="check"><input type="checkbox" id="remove-del-branch" />
+          <span>Also delete the branch <span id="remove-branch2" class="mono"></span> <span class="muted">(usually you keep it — the worktree removal already freed the checkout)</span></span></label>
+        <label class="check indent" id="remove-force-wrap" hidden><input type="checkbox" id="remove-force-branch" />
+          <span>Even if it has unmerged commits <strong class="danger">(they will be lost)</strong></span></label>
+      </div>
+
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="remove-confirm" value="ok" class="btn danger">Remove worktree</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Rename -->
+  <dialog id="dlg-rename">
+    <form method="dialog">
+      <h2>Rename worktree <span id="rename-old" class="mono"></span></h2>
+      <label>New name
+        <input id="rename-new" autocomplete="off" required />
+      </label>
+      <label class="check"><input type="checkbox" id="rename-branch-too" />
+        <span>Also rename the branch <span id="rename-branch-name" class="mono"></span> <span class="muted">(off: only the directory changes)</span></span></label>
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>

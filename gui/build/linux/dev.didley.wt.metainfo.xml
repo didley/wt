@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.didley.wt</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>wt</name>
+  <summary>Git worktrees, ergonomically</summary>
+  <description>
+    <p>
+      wt keeps every worktree of a git repository in one predictable place —
+      a sibling directory named repo.worktrees — and makes creating,
+      renaming and removing worktrees painless.
+    </p>
+    <p>
+      Removing a worktree never deletes its branch, and wt says so at every
+      step. Uncommitted changes are listed before removal with an explicit
+      choice: stash them (recoverable later) or discard them. Worktrees
+      created outside the convention with plain git are detected and can be
+      moved into place with one click.
+    </p>
+  </description>
+  <developer id="dev.didley">
+    <name>didley</name>
+  </developer>
+  <launchable type="desktop-id">dev.didley.wt.desktop</launchable>
+  <url type="homepage">https://github.com/didley/wt</url>
+  <url type="bugtracker">https://github.com/didley/wt/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.2.0" date="2026-07-04">
+      <description>
+        <p>First GUI release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

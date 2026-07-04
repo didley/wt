@@ -1,2 +1,5 @@
 /wt
 /dist/
+/gui/wt-gui
+/packaging/flatpak/build-dir/
+/packaging/flatpak/.flatpak-builder/

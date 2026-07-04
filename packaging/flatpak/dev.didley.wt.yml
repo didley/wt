@@ -1,0 +1,43 @@
+# Flatpak manifest for the wt GUI.
+#
+# Local dev build (network allowed, from the repo root):
+#   flatpak-builder --force-clean --user --install \
+#     --share=network build-dir packaging/flatpak/dev.didley.wt.yml
+#
+# Flathub submission notes:
+#   - Flathub builds are offline: generate vendored go module sources with
+#     https://github.com/flatpak/flatpak-builder-tools (flatpak-go-mod)
+#     and replace the `--share=network` dev shortcut below.
+#   - Screenshots must be added to the metainfo before submission.
+app-id: dev.didley.wt
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+command: wt-gui
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # git repos can live anywhere in the user's home
+  - --filesystem=home
+  # core runs `flatpak-spawn --host git …` so the user's real git,
+  # config and credential helpers are used
+  - --talk-name=org.freedesktop.Flatpak
+modules:
+  - name: wt-gui
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/golang/bin
+      build-args:
+        - --share=network # dev only; Flathub requires vendored sources
+    build-commands:
+      - cd gui && go build -tags desktop,production,webkit2_41 -ldflags "-s -w" -o /app/bin/wt-gui .
+      - install -Dm644 gui/build/linux/dev.didley.wt.desktop /app/share/applications/dev.didley.wt.desktop
+      - install -Dm644 gui/build/linux/dev.didley.wt.metainfo.xml /app/share/metainfo/dev.didley.wt.metainfo.xml
+      - install -Dm644 gui/build/linux/icons/dev.didley.wt.svg /app/share/icons/hicolor/scalable/apps/dev.didley.wt.svg
+    sources:
+      - type: dir
+        path: ../..

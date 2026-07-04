@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=wt
+GenericName=Git Worktree Manager
+Comment=Manage git worktrees — create, switch, rename and remove them safely
+Exec=wt-gui
+Icon=dev.didley.wt
+Terminal=false
+Type=Application
+Categories=Development;RevisionControl;
+Keywords=git;worktree;branch;checkout;
+StartupWMClass=wt-gui

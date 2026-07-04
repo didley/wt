@@ -158,12 +158,20 @@ notice next time it runs and offer to move it.
 Not supported (yet): the `.worktrees` convention anchors on a main
 checkout.
 
+## GUI
+
+`gui/` contains a desktop app (Wails v2) sharing the exact same core as the
+CLI: worktree cards with dirty status and expandable file lists, create /
+rename / remove dialogs using the same safety copy (branch always kept,
+stash-or-discard for dirty trees), and a banner with a one-click move for
+worktrees living outside `.worktrees/`. See [gui/README.md](gui/README.md)
+for build instructions (including Fedora Atomic/distrobox) and the Flatpak
+dev build (`packaging/flatpak/`).
+
 ## Roadmap
 
-- **GUI** (`wt`, in `gui/`): a Wails app sharing this repo's `internal/core`
-  — worktree cards with dirty status, the same stash/discard and
-  branch-retention flows, and stray-worktree banners. Distribution: Homebrew
-  cask on macOS, Flathub on Linux.
+- GUI distribution: Flathub submission (vendored go modules + screenshots)
+  and a macOS Homebrew cask (`wt`) with a signed dmg.
 
 ## Development
 
