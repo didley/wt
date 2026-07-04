@@ -33,6 +33,7 @@ changelog:
 # until goreleaser offers a Linux-capable alternative.
 brews:
   - name: wt-cli
+    directory: Formula
     repository:
       owner: didley
       name: homebrew-tap
