@@ -5,6 +5,9 @@ project_name: wt
 before:
   hooks:
     - go mod tidy
+    # Man pages are generated from the live cobra command tree so they can
+    # never drift from --help. The ldflags mirror the build's version stamp.
+    - go run -ldflags "-X github.com/didley/wt/internal/cli.version={{ .Version }}" ./cmd/wt gen-man man
 
 builds:
   - main: ./cmd/wt
@@ -19,6 +22,12 @@ builds:
 archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # Listing files replaces goreleaser's defaults, so LICENSE/README stay
+    # explicit alongside the generated man pages.
+    files:
+      - LICENSE
+      - README.md
+      - man/*.1
 
 checksum:
   name_template: checksums.txt
@@ -44,5 +53,6 @@ brews:
     install: |
       bin.install "wt"
       generate_completions_from_executable(bin/"wt", "completion")
+      man1.install Dir["man/*.1"]
     test: |
       system "#{bin}/wt", "--version"

@@ -36,7 +36,7 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "never prompt; fail or warn instead")
-	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, shellInitCmd)
+	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, shellInitCmd, genManCmd)
 }
 
 func Execute() {
@@ -55,7 +55,7 @@ func Execute() {
 // `git worktree add`) and offers to move them into place.
 func conventionCheck(cmd *cobra.Command) {
 	switch cmd.Name() {
-	case "doctor", "shell-init", "help", "completion", "version", "__complete", "__completeNoDesc":
+	case "doctor", "shell-init", "gen-man", "help", "completion", "version", "__complete", "__completeNoDesc":
 		return
 	}
 	if p := cmd.Parent(); p != nil && p.Name() == "completion" {
