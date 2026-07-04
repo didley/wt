@@ -38,13 +38,20 @@ jobs:
   gui:
     name: gui (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             tags: desktop,production,webkit2_41
           - os: macos-latest
             tags: desktop,production
+            # UTType (used by wails' file dialogs) lives in
+            # UniformTypeIdentifiers, which recent SDKs no longer link
+            # implicitly.
+            cgo_ldflags: -framework UniformTypeIdentifiers
     runs-on: ${{ matrix.os }}
+    env:
+      CGO_LDFLAGS: ${{ matrix.cgo_ldflags }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
