@@ -397,6 +397,11 @@ func (a *App) ForgetRepo(path string) []string {
 
 func (a *App) rememberRepo(path string) {
 	cfg := loadConfig()
+	// LoadRepo runs on every auto-refresh tick; don't rewrite the config
+	// file unless the ordering actually changes.
+	if len(cfg.Recent) > 0 && cfg.Recent[0] == path {
+		return
+	}
 	cfg.Recent = slices.DeleteFunc(cfg.Recent, func(p string) bool { return p == path })
 	cfg.Recent = append([]string{path}, cfg.Recent...)
 	if len(cfg.Recent) > 10 {

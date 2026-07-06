@@ -18,7 +18,35 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {
     toast(String(e), true);
   }
+  startAutoRefresh();
 });
+
+// ---------- auto refresh ----------
+//
+// git runs on the host (flatpak-spawn), so an in-sandbox file watcher can't
+// see the repo. Instead, poll the same git-backed view and re-render only
+// when it actually changed. Paused while hidden or while a dialog is open.
+
+const REFRESH_MS = 2500;
+
+function startAutoRefresh() {
+  setInterval(refreshIfChanged, REFRESH_MS);
+  window.addEventListener("focus", refreshIfChanged);
+}
+
+async function refreshIfChanged() {
+  if (!repo || document.hidden || document.querySelector("dialog[open]")) return;
+  let fresh;
+  try {
+    fresh = await api().LoadRepo(repo.mainPath);
+  } catch {
+    return; // transient (e.g. repo mid-move); next tick will retry
+  }
+  if (!repo || fresh.mainPath !== repo.mainPath) return; // user switched repos meanwhile
+  if (JSON.stringify(fresh) === JSON.stringify(repo)) return;
+  repo = fresh;
+  renderRepo();
+}
 
 function wireStaticHandlers() {
   $("open-repo").addEventListener("click", async () => {
@@ -109,13 +137,18 @@ function renderRepo() {
   }
 
   const section = $("worktrees");
+  // Keep "show changed files" panels open across auto-refresh re-renders.
+  const expanded = new Set(
+    [...section.querySelectorAll(".card > details[open]")].map((d) => d.closest(".card").dataset.path)
+  );
   section.replaceChildren();
-  for (const wt of repo.worktrees) section.appendChild(card(wt));
+  for (const wt of repo.worktrees) section.appendChild(card(wt, expanded.has(wt.path)));
 }
 
-function card(wt) {
+function card(wt, expand) {
   const el = document.createElement("div");
   el.className = "card" + (wt.stray ? " stray" : "");
+  el.dataset.path = wt.path;
 
   const row = document.createElement("div");
   row.className = "card-row";
@@ -141,6 +174,7 @@ function card(wt) {
 
   if (wt.changes.length > 0) {
     const det = document.createElement("details");
+    det.open = !!expand;
     const sum = document.createElement("summary");
     sum.textContent = "show changed files";
     det.appendChild(sum);
