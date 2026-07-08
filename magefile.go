@@ -5,6 +5,9 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"os/exec"
 	"runtime"
 
 	"github.com/magefile/mage/mg"
@@ -20,14 +23,22 @@ func Build() error {
 }
 
 // Gui compiles the desktop app to gui/wt-gui. Linux needs GTK3 and
-// WebKitGTK 4.1 headers — on Fedora Atomic run it inside the wt-gui
-// distrobox: distrobox enter wt-gui -- go run mage.go gui
+// WebKitGTK 4.1 headers; when the host lacks them (Fedora Atomic) the
+// build is delegated to the wt-gui distrobox automatically.
 func Gui() error {
 	tags := "desktop,production"
 	env := map[string]string{}
 	switch runtime.GOOS {
 	case "linux":
 		tags += ",webkit2_41"
+		if sh.Run("pkg-config", "--exists", "gtk+-3.0", "webkit2gtk-4.1") != nil {
+			if _, err := exec.LookPath("distrobox"); err != nil {
+				return errors.New("GTK3/WebKitGTK 4.1 headers not found and no distrobox available — see gui/README.md")
+			}
+			fmt.Println("host lacks GTK3/WebKitGTK headers; building inside the wt-gui distrobox")
+			return sh.RunV("distrobox", "enter", "wt-gui", "--",
+				"go", "-C", "gui", "build", "-tags", tags, "-o", "wt-gui", ".")
+		}
 	case "darwin":
 		// UTType (wails file dialogs) lives in UniformTypeIdentifiers,
 		// which recent SDKs no longer link implicitly.
