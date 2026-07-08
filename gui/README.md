@@ -9,7 +9,14 @@ The frontend is plain embedded HTML/CSS/JS (`frontend/dist/`) — no node
 toolchain. The `gui` directory is its own Go module so the CLI stays free
 of CGO and webkit dependencies.
 
+Users install it via the `wt` Homebrew cask (macOS) or the Flatpak
+(Linux) — see the [main README](../README.md#install). The rest of this
+file is about building from source.
+
 ## Build
+
+`go run mage.go gui` (from the repo root) picks the right tags and flags
+for your OS. What it runs:
 
 Linux (needs GTK3 + WebKitGTK 4.1 headers — on Fedora Atomic/Silverblue use
 a distrobox):
@@ -22,14 +29,15 @@ cd gui && go build -tags desktop,production,webkit2_41 -o wt-gui .
 macOS (Xcode command line tools):
 
 ```sh
-cd gui && go build -tags desktop,production -o wt-gui .
+cd gui && CGO_LDFLAGS="-framework UniformTypeIdentifiers" \
+  go build -tags desktop,production -o wt-gui .
 ```
 
-Flatpak (dev build, from the repo root):
+Flatpak (dev build, from the repo root — or `go run mage.go flatpak`):
 
 ```sh
-flatpak-builder --force-clean --user --install --share=network \
-  build-dir packaging/flatpak/dev.didley.wt.yml
+flatpak-builder --force-clean --user --install \
+  --install-deps-from=flathub build-dir packaging/flatpak/dev.didley.wt.yml
 flatpak run dev.didley.wt
 ```
 

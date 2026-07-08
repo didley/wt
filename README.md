@@ -1,9 +1,11 @@
 # wt — git worktrees, ergonomically
 
-`wt` is a small CLI that removes the friction from git worktrees. It keeps
-every worktree of a repository in **one predictable place** — a sibling
-directory named `<repo>.worktrees/` — and makes creating, listing,
-switching, renaming and removing worktrees painless:
+`wt` removes the friction from git worktrees. It ships as a **CLI** and a
+**desktop app (GUI)** built on the same core, so both enforce the same
+convention and give the same guarantees. Every worktree of a repository
+lives in **one predictable place** — a sibling directory named
+`<repo>.worktrees/` — and creating, listing, switching, renaming and
+removing worktrees is painless:
 
 ```
 ~/Developer/my-app                     ← main checkout
@@ -46,8 +48,35 @@ three things routinely trip people up. `wt` is designed around them:
 
 ## Install
 
+### macOS — desktop app + CLI
+
 ```sh
-brew install didley/tap/wt-cli        # macOS and Linux (Linuxbrew)
+brew install didley/tap/wt
+```
+
+The cask installs `wt.app` and the `wt` command-line tool together. The
+app is not notarized (yet — see the [roadmap](#roadmap)): macOS blocks the
+first launch, allow it under *System Settings → Privacy & Security → Open
+Anyway*.
+
+### Linux — desktop app
+
+The GUI is distributed as a Flatpak. Until the Flathub listing is live,
+grab `wt.flatpak` from the [latest release](https://github.com/didley/wt/releases/latest):
+
+```sh
+flatpak install ./wt.flatpak          # runtime deps come from Flathub
+```
+
+(Once the Flathub submission lands this becomes
+`flatpak install flathub dev.didley.wt`.)
+
+### CLI only — macOS and Linux
+
+If you just want the command-line tool (works with Linuxbrew):
+
+```sh
+brew install didley/tap/wt-cli
 ```
 
 Or with Go:
@@ -55,6 +84,9 @@ Or with Go:
 ```sh
 go install github.com/didley/wt/cmd/wt@latest
 ```
+
+The `wt` cask and the `wt-cli` formula both install the same `wt` binary,
+so use one or the other.
 
 ### Shell integration (recommended)
 
@@ -67,7 +99,7 @@ eval "$(wt shell-init zsh)"           # ~/.zshrc
 wt shell-init fish | source           # ~/.config/fish/config.fish
 ```
 
-## Usage
+## CLI usage
 
 Run `wt` with no arguments to list worktrees. All commands are interactive
 when run in a terminal and scriptable with flags.
@@ -137,6 +169,21 @@ use `wt` — no background watcher needed.
 
 Print the shell wrapper function (see [Shell integration](#shell-integration-recommended)).
 
+## The GUI
+
+The desktop app (`gui/`, Wails v2) shares `internal/core` with the CLI —
+same behaviors, same safety copy:
+
+- worktree cards with dirty status and expandable changed-file lists
+- create / rename / remove dialogs: the branch is always kept, dirty
+  trees get the explicit stash-or-discard choice
+- a banner with a one-click move for worktrees living outside
+  `.worktrees/`
+
+Install it via the [macOS cask or the Linux Flatpak](#install). To build
+it from source (including on Fedora Atomic with a distrobox), see
+[gui/README.md](gui/README.md).
+
 ## FAQ
 
 **Does deleting a worktree delete my branch?**
@@ -158,33 +205,38 @@ notice next time it runs and offer to move it.
 Not supported (yet): the `.worktrees` convention anchors on a main
 checkout.
 
-## GUI
-
-`gui/` contains a desktop app (Wails v2) sharing the exact same core as the
-CLI: worktree cards with dirty status and expandable file lists, create /
-rename / remove dialogs using the same safety copy (branch always kept,
-stash-or-discard for dirty trees), and a banner with a one-click move for
-worktrees living outside `.worktrees/`. See [gui/README.md](gui/README.md)
-for build instructions (including Fedora Atomic/distrobox) and the Flatpak
-dev build (`packaging/flatpak/`).
-
 ## Roadmap
 
-- GUI distribution: Flathub submission (vendored go modules + screenshots)
-  and a macOS Homebrew cask (`wt`) with a signed dmg.
+- Flathub listing for the GUI (vendored go modules + screenshots; until
+  then each release ships an installable `wt.flatpak` bundle)
+- Signing/notarization for the macOS app (the cask currently installs an
+  ad-hoc-signed, non-notarized `wt.app`)
 
 ## Development
 
+Tasks are run with [mage](https://magefile.org) — no install needed,
+`go run mage.go <target>` works everywhere:
+
 ```sh
-go build ./...   # build
-go test ./...    # tests run against real git repos in temp dirs
+go run mage.go -l        # list all targets
+go run mage.go build     # CLI -> ./wt
+go run mage.go gui       # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
+                         # headers on Linux; on Fedora Atomic run inside a
+                         # distrobox, see gui/README.md)
+go run mage.go check     # tests (against real git repos in temp dirs) + vet
+go run mage.go flatpak   # build + install the Flatpak for the current user
 ```
 
-Releases: push a `v*` tag. CI runs the test suite (Ubuntu + macOS); the
-release workflow re-runs tests, then goreleaser builds
-linux/darwin × amd64/arm64 binaries, publishes the GitHub Release and
-updates the `wt-cli` formula in `didley/homebrew-tap` (needs a
-`TAP_GITHUB_TOKEN` repository secret with write access to the tap).
+Releases: push a `v*` tag. CI runs the test suite (Ubuntu + macOS) and GUI
+builds; the release workflow re-runs tests, then
+
+- goreleaser builds linux/darwin × amd64/arm64 CLI binaries, publishes the
+  GitHub Release and updates the `wt-cli` formula in `didley/homebrew-tap`
+  (needs a `TAP_GITHUB_TOKEN` repository secret with write access)
+- a macOS job builds the universal `wt.app` + CLI, attaches
+  `wt_<version>_darwin_universal.zip` to the release and updates the `wt`
+  cask in the tap
+- a Linux job builds the Flatpak and attaches `wt.flatpak` to the release
 
 ## License
 
