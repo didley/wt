@@ -19,12 +19,17 @@ type Violation struct {
 // whose directories no longer exist.
 func (r *Repo) Violations(wts []Worktree) []Violation {
 	wtDir := resolvePath(r.WorktreesDir())
+	// For the inode fallback below; nil when the dir doesn't exist yet.
+	wtDirInfo, _ := os.Stat(wtDir)
 	var vs []Violation
 	for _, w := range wts {
 		if w.IsMain || w.Bare || w.Prunable {
 			continue
 		}
 		if isWithin(wtDir, resolvePath(w.Path)) {
+			continue
+		}
+		if wtDirInfo != nil && hasAncestor(w.Path, wtDirInfo) {
 			continue
 		}
 		name := SanitizeBranchName(w.Branch)
@@ -53,6 +58,23 @@ func resolvePath(p string) string {
 func isWithin(dir, p string) bool {
 	rel, err := filepath.Rel(dir, p)
 	return err == nil && isRelInside(rel)
+}
+
+// hasAncestor reports whether some ancestor directory of p is the same
+// directory as dir, compared by device+inode. This catches path aliases
+// that resolvePath cannot: e.g. inside a container /home/u and /var/home/u
+// can be two bind mounts of one directory with no symlink between them, so
+// a worktree recorded under one prefix looks like it lives outside a
+// .worktrees dir addressed under the other.
+func hasAncestor(p string, dir os.FileInfo) bool {
+	for cur := filepath.Dir(filepath.Clean(p)); ; cur = filepath.Dir(cur) {
+		if fi, err := os.Stat(cur); err == nil && os.SameFile(fi, dir) {
+			return true
+		}
+		if cur == filepath.Dir(cur) { // hit the filesystem root
+			return false
+		}
+	}
 }
 
 func isRelInside(rel string) bool {

@@ -279,3 +279,31 @@ func TestSummarizeChangesClean(t *testing.T) {
 		t.Errorf("SummarizeChanges(nil) = %q, want clean", got)
 	}
 }
+
+// hasAncestor must identify containment by device+inode, not by path
+// text: a worktree recorded under an aliased prefix (bind mount in a
+// container, symlink here) still lives inside the .worktrees dir.
+func TestHasAncestorAlias(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "app.worktrees")
+	if err := os.MkdirAll(filepath.Join(real, "fix-login"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(base, "alias")
+	if err := os.Symlink(real, alias); err != nil {
+		t.Fatal(err)
+	}
+	dirInfo, err := os.Stat(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasAncestor(filepath.Join(alias, "fix-login"), dirInfo) {
+		t.Errorf("hasAncestor(%q via alias) = false, want true", real)
+	}
+	if hasAncestor(filepath.Join(base, "elsewhere", "fix-login"), dirInfo) {
+		t.Error("hasAncestor(outside path) = true, want false")
+	}
+	if hasAncestor(real, dirInfo) {
+		t.Error("hasAncestor(the dir itself) = true, want false (not an ancestor)")
+	}
+}
