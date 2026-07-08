@@ -14,6 +14,9 @@
 }
 
 * { box-sizing: border-box; }
+/* Elements like .banner set their own display, which would override the
+   browser's built-in [hidden] { display: none } — force hidden to win. */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;

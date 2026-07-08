@@ -27,6 +27,11 @@
   <url type="bugtracker">https://github.com/didley/wt/issues</url>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="0.2.1" date="2026-07-09">
+      <description>
+        <p>Fix the stray-worktree banner showing even when every worktree is in place.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-07-09">
       <description>
         <p>First GUI release.</p>
