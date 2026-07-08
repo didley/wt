@@ -1,8 +1,9 @@
 # Flatpak manifest for the wt GUI.
 #
-# Local dev build (network allowed, from the repo root):
+# Local dev build (from the repo root; network for `go build` comes from
+# the build-args below):
 #   flatpak-builder --force-clean --user --install \
-#     --share=network build-dir packaging/flatpak/dev.didley.wt.yml
+#     --install-deps-from=flathub build-dir packaging/flatpak/dev.didley.wt.yml
 #
 # Flathub submission notes:
 #   - Flathub builds are offline: generate vendored go module sources with
@@ -11,7 +12,10 @@
 #   - Screenshots must be added to the metainfo before submission.
 app-id: dev.didley.wt
 runtime: org.gnome.Platform
-runtime-version: '48'
+# GNOME 50 is based on freedesktop 25.08, so sdk-extensions resolve to the
+# 25.08 branch (golang 25.08 ships Go 1.26). Flathub EOLs old branches:
+# when bumping, check `flatpak remote-ls flathub | grep gnome.Platform`.
+runtime-version: '50'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.golang

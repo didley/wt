@@ -27,7 +27,7 @@
   <url type="bugtracker">https://github.com/didley/wt/issues</url>
   <content_rating type="oars-1.1" />
   <releases>
-    <release version="0.2.0" date="2026-07-04">
+    <release version="0.2.0" date="2026-07-09">
       <description>
         <p>First GUI release.</p>
       </description>
