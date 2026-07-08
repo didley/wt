@@ -1,5 +1,8 @@
 # wt — git worktrees, ergonomically
 
+<img width="1071" height="732" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
+
+
 `wt` removes the friction from git worktrees. It ships as a **CLI** and a
 **desktop app (GUI)** built on the same core, so both enforce the same
 convention and give the same guarantees. Every worktree of a repository
