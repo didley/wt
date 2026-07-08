@@ -26,3 +26,103 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+  # Builds the macOS desktop app (universal .app bundle) plus a universal
+  # CLI binary, attaches the zip to the release goreleaser just published,
+  # and updates the `wt` cask in didley/homebrew-tap. The app is ad-hoc
+  # signed (no Apple Developer account); the cask carries the Gatekeeper
+  # caveat.
+  gui-macos:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: gui/go.sum
+      - name: Build universal GUI binary
+        working-directory: gui
+        env:
+          # UTType (wails file dialogs) lives in UniformTypeIdentifiers,
+          # which recent SDKs no longer link implicitly.
+          CGO_LDFLAGS: -framework UniformTypeIdentifiers
+        run: |
+          CGO_ENABLED=1 GOARCH=arm64 go build -tags desktop,production -ldflags "-s -w" -o wt-gui-arm64 .
+          CGO_ENABLED=1 GOARCH=amd64 go build -tags desktop,production -ldflags "-s -w" -o wt-gui-amd64 .
+          lipo -create -output wt-gui wt-gui-arm64 wt-gui-amd64
+      - name: Build universal CLI binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          LDFLAGS="-s -w -X github.com/didley/wt/internal/cli.version=${VERSION}"
+          CGO_ENABLED=0 GOARCH=arm64 go build -ldflags "$LDFLAGS" -o wt-arm64 ./cmd/wt
+          CGO_ENABLED=0 GOARCH=amd64 go build -ldflags "$LDFLAGS" -o wt-amd64 ./cmd/wt
+          lipo -create -output wt wt-arm64 wt-amd64
+      - name: Assemble wt.app and zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          APP=dist/wt.app
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          sed "s/__VERSION__/$VERSION/g" gui/build/darwin/Info.plist > "$APP/Contents/Info.plist"
+          cp gui/wt-gui "$APP/Contents/MacOS/wt-gui"
+
+          # icon.png (1024px) -> icon.icns with Apple's own tools
+          mkdir icon.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s gui/build/darwin/icon.png --out "icon.iconset/icon_${s}x${s}.png" >/dev/null
+            d=$((s * 2))
+            sips -z $d $d gui/build/darwin/icon.png --out "icon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+          done
+          iconutil -c icns -o "$APP/Contents/Resources/icon.icns" icon.iconset
+
+          codesign --force --deep -s - "$APP"
+          cp wt dist/
+          (cd dist && zip -ry "wt_${VERSION}_darwin_universal.zip" wt.app wt)
+      - name: Upload zip to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release upload "$GITHUB_REF_NAME" "dist/wt_${VERSION}_darwin_universal.zip"
+      - name: Update the wt cask in the tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA256=$(shasum -a 256 "dist/wt_${VERSION}_darwin_universal.zip" | awk '{print $1}')
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/didley/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/__VERSION__/$VERSION/" -e "s/__SHA256__/$SHA256/" \
+            packaging/homebrew/wt-cask.rb.tmpl > tap/Casks/wt.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/wt.rb
+          git commit -m "wt cask ${VERSION}"
+          git push
+
+  # Builds the Flatpak and attaches a single-file bundle to the release so
+  # Linux users can install the GUI before (and after) the Flathub listing
+  # exists: flatpak install ./wt.flatpak
+  gui-flatpak:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install flatpak-builder and runtimes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub \
+            org.gnome.Platform//50 org.gnome.Sdk//50 \
+            org.freedesktop.Sdk.Extension.golang//25.08
+      - name: Build bundle
+        run: |
+          flatpak-builder --user --force-clean --repo=repo \
+            build-dir packaging/flatpak/dev.didley.wt.yml
+          flatpak build-bundle repo wt.flatpak dev.didley.wt
+      - name: Upload bundle to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" wt.flatpak

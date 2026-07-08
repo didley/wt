@@ -2,5 +2,8 @@
 /dist/
 /man/
 /gui/wt-gui
-/packaging/flatpak/build-dir/
-/packaging/flatpak/.flatpak-builder/
+# flatpak-builder runs from the repo root
+/build-dir/
+/.flatpak-builder/
+/repo/
+*.flatpak
