@@ -161,6 +161,42 @@ func TestWorktreeLifecycle(t *testing.T) {
 	}
 }
 
+func TestRemoveWorktreeMissingAdminFiles(t *testing.T) {
+	repo := newTestRepo(t)
+	path := repo.ConventionalPath("feature-y")
+	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddWorktree(path, "feature/y", "main", true); err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+
+	// Simulate the worktree's directory getting wiped out from under git
+	// (e.g. /tmp cleared on reboot): its .git file is gone, but git still
+	// has an admin entry that considers it prunable.
+	if err := os.RemoveAll(filepath.Join(path, ".git")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := repo.RemoveWorktree(path, true); err != nil {
+		t.Fatalf("RemoveWorktree: want fallback to prune to succeed, got: %v", err)
+	}
+
+	wts, err := repo.Worktrees()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range wts {
+		if w.Path == path {
+			t.Errorf("worktree %q still registered after RemoveWorktree", path)
+		}
+	}
+	// The branch must still exist after worktree removal.
+	if !repo.BranchExists("feature/y") {
+		t.Error("branch feature/y was deleted by worktree removal")
+	}
+}
+
 func TestViolationsAndMove(t *testing.T) {
 	repo := newTestRepo(t)
 	stray := filepath.Join(filepath.Dir(repo.MainPath), "stray-checkout")

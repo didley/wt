@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 )
@@ -102,6 +103,12 @@ func (r *Repo) AddWorktree(path, branch, baseRef string, createBranch bool) erro
 // RemoveWorktree removes the worktree at path. force is required when the
 // worktree has modifications the caller has already dealt with (stashed or
 // chosen to discard). The branch is never touched.
+//
+// If the worktree's own .git file is already gone (its directory was deleted
+// out from under git, e.g. from /tmp getting cleared), `git worktree remove`
+// refuses with "validation failed, cannot remove working tree" even with
+// --force: it can't validate a working tree that isn't there. That case is
+// exactly what `git worktree prune` is for, so fall back to it.
 func (r *Repo) RemoveWorktree(path string, force bool) error {
 	args := []string{"worktree", "remove"}
 	if force {
@@ -109,7 +116,21 @@ func (r *Repo) RemoveWorktree(path string, force bool) error {
 	}
 	args = append(args, path)
 	_, err := Git(r.MainPath, args...)
+	if err != nil && isMissingAdminFilesError(err) {
+		return r.PruneWorktrees()
+	}
 	return err
+}
+
+// isMissingAdminFilesError reports whether err is git's "validation failed,
+// cannot remove working tree: '<path>/.git' does not exist" failure.
+func isMissingAdminFilesError(err error) bool {
+	var gitErr *GitError
+	if !errors.As(err, &gitErr) {
+		return false
+	}
+	return strings.Contains(gitErr.Stderr, "validation failed") &&
+		strings.Contains(gitErr.Stderr, "does not exist")
 }
 
 // MoveWorktree relocates a worktree directory.
