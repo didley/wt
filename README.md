@@ -58,9 +58,8 @@ brew install didley/tap/wt
 ```
 
 The cask installs `wt.app` and the `wt` command-line tool together. The
-app is not notarized (yet — see the [roadmap](#roadmap)): macOS blocks the
-first launch, allow it under *System Settings → Privacy & Security → Open
-Anyway*.
+app is signed with a Developer ID and notarized by Apple, so it launches
+without a Gatekeeper warning.
 
 ### Linux — desktop app
 
@@ -212,8 +211,6 @@ checkout.
 
 - Flathub listing for the GUI (vendored go modules + screenshots; until
   then each release ships an installable `wt.flatpak` bundle)
-- Signing/notarization for the macOS app (the cask currently installs an
-  ad-hoc-signed, non-notarized `wt.app`)
 
 ## Development
 

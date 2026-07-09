@@ -28,10 +28,9 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
 
   # Builds the macOS desktop app (universal .app bundle) plus a universal
-  # CLI binary, attaches the zip to the release goreleaser just published,
-  # and updates the `wt` cask in didley/homebrew-tap. The app is ad-hoc
-  # signed (no Apple Developer account); the cask carries the Gatekeeper
-  # caveat.
+  # CLI binary, signs it with the Developer ID Application certificate,
+  # notarizes and staples it, attaches the zip to the release goreleaser
+  # just published, and updates the `wt` cask in didley/homebrew-tap.
   gui-macos:
     needs: release
     runs-on: macos-latest
@@ -41,6 +40,23 @@ jobs:
         with:
           go-version: stable
           cache-dependency-path: gui/go.sum
+      - name: Import signing certificate into a temporary keychain
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/wt-signing.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/wt-signing.keychain-db"
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+          rm -f "$CERT_PATH"
       - name: Build universal GUI binary
         working-directory: gui
         env:
@@ -58,7 +74,12 @@ jobs:
           CGO_ENABLED=0 GOARCH=arm64 go build -ldflags "$LDFLAGS" -o wt-arm64 ./cmd/wt
           CGO_ENABLED=0 GOARCH=amd64 go build -ldflags "$LDFLAGS" -o wt-amd64 ./cmd/wt
           lipo -create -output wt wt-arm64 wt-amd64
-      - name: Assemble wt.app and zip
+      - name: Assemble, sign, and notarize wt.app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           APP=dist/wt.app
@@ -75,8 +96,21 @@ jobs:
           done
           iconutil -c icns -o "$APP/Contents/Resources/icon.icns" icon.iconset
 
-          codesign --force --deep -s - "$APP"
+          IDENTITY="Developer ID Application: Dylan Lamont ($APPLE_TEAM_ID)"
+          codesign --force --deep --options runtime \
+            --entitlements gui/build/darwin/entitlements.plist \
+            -s "$IDENTITY" "$APP"
           cp wt dist/
+
+          KEY_PATH="$RUNNER_TEMP/asc_api_key.p8"
+          echo "$ASC_API_KEY_P8" > "$KEY_PATH"
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/wt-notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/wt-notarize.zip" \
+            --key "$KEY_PATH" --key-id "$ASC_API_KEY_ID" --issuer "$ASC_API_ISSUER_ID" \
+            --wait
+          rm -f "$KEY_PATH" "$RUNNER_TEMP/wt-notarize.zip"
+          xcrun stapler staple "$APP"
+
           (cd dist && zip -ry "wt_${VERSION}_darwin_universal.zip" wt.app wt)
       - name: Upload zip to the release
         env:

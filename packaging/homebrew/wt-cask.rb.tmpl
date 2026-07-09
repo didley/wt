@@ -15,12 +15,6 @@ cask "wt" do
   binary "wt"
 
   caveats <<~EOS
-    wt.app is ad-hoc signed, not notarized. macOS blocks the first launch;
-    allow it under System Settings → Privacy & Security → Open Anyway, or
-    clear the quarantine flag:
-
-      xattr -dr com.apple.quarantine "#{appdir}/wt.app"
-
     Note: this cask and the didley/tap/wt-cli formula both install a `wt`
     binary. Homebrew's `conflicts_with` doesn't support cask/formula
     conflicts, so installing both will clobber the binary — install only one.
