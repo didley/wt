@@ -52,7 +52,8 @@ func Execute() {
 
 // conventionCheck runs before every repo-touching command: it detects
 // worktrees living outside <repo>.worktrees/ (e.g. created with raw
-// `git worktree add`) and offers to move them into place.
+// `git worktree add`) and prints a heads-up. It never prompts — moving
+// strays into place is an opt-in action via `wt organize`.
 func conventionCheck(cmd *cobra.Command) {
 	switch cmd.Name() {
 	case "doctor", "shell-init", "gen-man", "help", "completion", "version", "__complete", "__completeNoDesc":
@@ -77,11 +78,6 @@ func conventionCheck(cmd *cobra.Command) {
 	for _, v := range vs {
 		fmt.Fprintf(os.Stderr, "    %s\n", v.Worktree.Path)
 	}
-	if !interactive() {
-		warnf("run `wt doctor` to move them into place.")
-		fmt.Fprintln(os.Stderr)
-		return
-	}
-	moveViolations(repo, vs, true)
+	warnf("run `wt organize` to move them into place.")
 	fmt.Fprintln(os.Stderr)
 }

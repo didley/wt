@@ -134,7 +134,7 @@ func renderList(repo *core.Repo, rows []listRow) {
 		fmt.Println(stDim.Render("no worktrees yet — create one with `wt create`"))
 	}
 	for _, r := range stray {
-		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt doctor`)"), bwidth, r.branch, r.state)
+		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt organize`)"), bwidth, r.branch, r.state)
 	}
 }
 

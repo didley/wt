@@ -11,9 +11,10 @@ import (
 var doctorFix bool
 
 var doctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Check that every worktree follows the .worktrees convention",
-	Long: `Check the repository's worktrees:
+	Use:     "doctor",
+	Aliases: []string{"organize"},
+	Short:   "Check that every worktree follows the .worktrees convention",
+	Long: `Check the repository's worktrees (also available as ` + "`wt organize`" + `):
 
   - worktrees outside <repo>.worktrees/ (e.g. created with raw
     ` + "`git worktree add`" + `) are reported and can be moved into place
