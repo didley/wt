@@ -350,33 +350,71 @@ function openCreateDialog() {
   const dlg = $("dlg-create");
   $("create-branch").value = "";
   $("create-base").value = repo.defaultBranch;
-  const dl = $("branch-options");
-  dl.replaceChildren();
-  for (const b of repo.availableBranches) {
-    const opt = document.createElement("option");
-    opt.value = b;
-    dl.appendChild(opt);
-  }
+  renderExistingBranchChips();
   updateCreateHint();
   dlg.returnValue = "cancel";
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
-    const branch = $("create-branch").value.trim();
+    const branches = createBranchList();
     const base = $("create-base").value.trim();
-    await action(() => api().CreateWorktree(repo.mainPath, branch, base), "Creating worktree…");
+    if (branches.length === 0) return;
+    if (branches.length === 1) {
+      await action(() => api().CreateWorktree(repo.mainPath, branches[0], base), "Creating worktree…");
+    } else {
+      await action(
+        () => api().CreateWorktrees(repo.mainPath, branches, base),
+        `Creating ${branches.length} worktrees…`
+      );
+    }
   };
   dlg.showModal();
 }
 
+// One branch per line, trimmed, blanks dropped.
+function createBranchList() {
+  return $("create-branch")
+    .value.split("\n")
+    .map((b) => b.trim())
+    .filter(Boolean);
+}
+
+// Existing branches without a worktree — clicking one appends it to the
+// textarea, since a <textarea> can't use a <datalist> for autocomplete.
+function renderExistingBranchChips() {
+  const wrap = $("create-existing-branches");
+  const list = $("create-existing-branches-list");
+  list.replaceChildren();
+  wrap.hidden = repo.availableBranches.length === 0;
+  for (const b of repo.availableBranches) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = b;
+    chip.addEventListener("click", () => {
+      const lines = createBranchList();
+      if (lines.includes(b)) return;
+      $("create-branch").value = lines.concat(b).join("\n") + "\n";
+      updateCreateHint();
+      $("create-branch").focus();
+    });
+    list.appendChild(chip);
+  }
+}
+
 function updateCreateHint() {
-  const branch = $("create-branch").value.trim();
-  const exists = repo && repo.availableBranches.includes(branch);
-  $("create-hint").textContent = exists
-    ? `Branch "${branch}" already exists — it will be checked out into the new worktree (base ref is ignored).`
-    : branch
-      ? `A new branch "${branch}" will be created from the base ref below.`
-      : "";
-  $("create-base-label").style.display = exists ? "none" : "";
+  const branches = createBranchList();
+  if (branches.length === 0) {
+    $("create-hint").textContent =
+      "One branch per line. Existing branches are checked out as-is; new ones are created from the base ref below.";
+    return;
+  }
+  const existingSet = new Set(repo ? repo.availableBranches : []);
+  const newCount = branches.filter((b) => !existingSet.has(b)).length;
+  const existingCount = branches.length - newCount;
+  const parts = [];
+  if (newCount > 0) parts.push(`${newCount} new branch${newCount > 1 ? "es" : ""} from the base ref below`);
+  if (existingCount > 0) parts.push(`${existingCount} existing branch${existingCount > 1 ? "es" : ""} checked out as-is`);
+  $("create-hint").textContent = parts.join(", ") + ".";
 }
 
 // ---------- lock dialog ----------
