@@ -167,6 +167,12 @@ button.badge.has-reason { cursor: pointer; }
 button.badge.has-reason:hover { background: color-mix(in srgb, var(--warn) 34%, var(--bg3)); }
 button.badge.has-reason:active { background: color-mix(in srgb, var(--warn) 44%, var(--bg3)); transform: translateY(1px); }
 button.badge.has-reason:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.info-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-left: 5px; flex-shrink: 0;
+  border-radius: 50%; border: 1px solid currentColor;
+  font-size: 0.85em; font-weight: 700; font-style: italic; line-height: 1;
+}
 .branch-chip { color: var(--muted); font-size: 0.88em; }
 .state { margin-left: auto; font-size: 0.88em; }
 .state.clean { color: var(--good); }
