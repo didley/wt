@@ -62,6 +62,40 @@ func TestMenuCommandsCoverAllVisibleCommands(t *testing.T) {
 	}
 }
 
+func TestMenuOptions(t *testing.T) {
+	cmds := menuCommands()
+	opts, descriptions := menuOptions(cmds)
+
+	const wantExtra = 2 // "list --verbose" and "Exit"
+	if len(opts) != len(cmds)+wantExtra {
+		t.Fatalf("menuOptions() returned %d options, want %d", len(opts), len(cmds)+wantExtra)
+	}
+
+	for i, c := range cmds {
+		if opts[i].Key != c.Name() {
+			t.Errorf("option %d label = %q, want command name %q", i, opts[i].Key, c.Name())
+		}
+		if descriptions[i] != c.Short {
+			t.Errorf("description[%d] = %q, want %q", i, descriptions[i], c.Short)
+		}
+	}
+
+	if descriptions[menuVerboseListIdx] != verboseHelp {
+		t.Errorf("description[verboseListIdx] = %q, want %q", descriptions[menuVerboseListIdx], verboseHelp)
+	}
+	if descriptions[menuExitIdx] == "" {
+		t.Error("description[exitIdx] is empty")
+	}
+
+	last, secondLast := opts[len(opts)-1], opts[len(opts)-2]
+	if last.Key != "Exit" || last.Value != menuExitIdx {
+		t.Errorf("last option = %+v, want Exit/%d", last, menuExitIdx)
+	}
+	if secondLast.Key != "list --verbose" || secondLast.Value != menuVerboseListIdx {
+		t.Errorf("second-to-last option = %+v, want list --verbose/%d", secondLast, menuVerboseListIdx)
+	}
+}
+
 func TestWorktreeOptions(t *testing.T) {
 	repo := newTestRepo(t)
 	wts := []core.Worktree{

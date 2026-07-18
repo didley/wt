@@ -59,30 +59,72 @@ func menuCommands() []*cobra.Command {
 	}
 }
 
-// runMenu offers an interactive choice of what to do next after `wt` (no
-// args) has printed the worktree list, then runs the chosen command. Labels
-// are derived from each command's own name and -h description (Short) so
-// there's a single source of truth for both.
-//
-// It loops: once a command finishes, the menu comes back around rather than
-// exiting, so you're never dropped out of the session after one action —
-// picking a command and then returning to "what next?" plays the role a
-// "back" option would.
-func runMenu() error {
-	const exitIdx = -1
-	const verboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
-	const extraOptions = 2    // "list --verbose" and "Exit"
-	cmds := menuCommands()
+// menuHeight caps the visible rows in the "Run a command" list so it stays
+// usable on short terminal windows: beyond this it scrolls (huh shows a
+// scroll indicator) rather than growing the prompt to fit every command.
+const menuHeight = 7
+
+// menuExitIdx and menuVerboseListIdx are menuOptions' two synthetic entries,
+// alongside the real command indices into menuCommands().
+const (
+	menuExitIdx        = -1
+	menuVerboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
+)
+
+// menuOptions builds the "Run a command" select's options and per-index
+// descriptions from cmds — split out from runMenu (which also drives the
+// interactive huh.Form) so this pure part can be unit tested directly.
+func menuOptions(cmds []*cobra.Command) ([]huh.Option[int], map[int]string) {
+	const extraOptions = 2 // "list --verbose" and "Exit"
+	descriptions := map[int]string{
+		menuExitIdx:        "Leave this menu",
+		menuVerboseListIdx: verboseHelp,
+	}
 	opts := make([]huh.Option[int], 0, len(cmds)+extraOptions)
 	for i, c := range cmds {
-		opts = append(opts, huh.NewOption(c.Name()+" — "+c.Short, i))
+		opts = append(opts, huh.NewOption(c.Name(), i))
+		descriptions[i] = c.Short
 	}
-	opts = append(opts, huh.NewOption("list --verbose — "+verboseHelp, verboseListIdx))
-	opts = append(opts, huh.NewOption("Exit", exitIdx))
+	opts = append(opts, huh.NewOption("list --verbose", menuVerboseListIdx))
+	opts = append(opts, huh.NewOption("Exit", menuExitIdx))
+	return opts, descriptions
+}
+
+// runMenu offers an interactive choice of what to do next after `wt` (no
+// args) has printed the worktree list, then runs the chosen command.
+//
+// Rows show just the command name — the description is shown once, in a
+// single line below the title, and swaps in dynamically for whichever
+// command is currently focused (huh.DescriptionFunc bound to the value
+// pointer). That keeps every command's name visible at once (a flat
+// "name — description" list doesn't fit a narrow terminal and buries the
+// names in prose) while still surfacing what each one does.
+//
+// It also loops: once a command finishes, the menu comes back around
+// rather than exiting, so you're never dropped out of the session after
+// one action — picking a command and then returning here plays the role a
+// "back" option would.
+func runMenu() error {
+	const exitIdx = menuExitIdx
+	const verboseListIdx = menuVerboseListIdx
+	cmds := menuCommands()
+	opts, descriptions := menuOptions(cmds)
+
+	// Up/down are the default select keys; left/right are enabled too, as
+	// equivalent ways to move through the (still vertical) list.
+	menuKeyMap := huh.NewDefaultKeyMap()
+	menuKeyMap.Select.Left.SetEnabled(true)
+	menuKeyMap.Select.Right.SetEnabled(true)
 
 	for {
 		idx := exitIdx
-		err := runPrompt(huh.NewSelect[int]().Title("Run a command").Options(opts...).Value(&idx))
+		err := runPrompt(huh.NewSelect[int]().
+			Title("Run a command").
+			Height(menuHeight).
+			Options(opts...).
+			DescriptionFunc(func() string { return descriptions[idx] }, &idx).
+			Value(&idx).
+			WithKeyMap(menuKeyMap))
 		if err != nil {
 			if errors.Is(err, errAborted) {
 				return nil
