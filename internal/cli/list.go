@@ -275,10 +275,7 @@ func renderVerbose(rows []listRow) {
 	var anyStray, anyLocked bool
 	for _, r := range rows {
 		path := r.wt.Path
-		styledPath := path
-		if r.wt.IsMain {
-			styledPath = stBold.Render(path)
-		}
+		styledPath := markerStyle(r).Render(path)
 		dir := dirLabel(r)
 		styledDir := markerStyle(r).Render(dir)
 		anyStray = anyStray || r.stray
