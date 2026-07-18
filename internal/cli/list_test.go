@@ -83,29 +83,50 @@ func TestRunListNotARepo(t *testing.T) {
 	}
 }
 
-func TestLockCell(t *testing.T) {
+const testWorktreeName = "app"
+
+func TestNameLabelLockedAndStray(t *testing.T) {
 	cases := []struct {
-		name    string
-		row     listRow
-		verbose bool
-		want    string
+		name string
+		row  listRow
+		want string
 	}{
-		{"unlocked, narrow", listRow{wt: core.Worktree{Locked: false}}, false, ""},
-		{"unlocked, verbose", listRow{wt: core.Worktree{Locked: false}}, true, ""},
-		{"locked no reason, narrow", listRow{wt: core.Worktree{Locked: true}}, false, lockMarker},
-		{"locked no reason, verbose", listRow{wt: core.Worktree{Locked: true}}, true, lockMarker},
+		{"plain", listRow{name: testWorktreeName}, testWorktreeName},
+		{"locked", listRow{name: testWorktreeName, wt: core.Worktree{Locked: true}}, testWorktreeName + lockedMarker},
+		{"stray", listRow{name: testWorktreeName, stray: true}, testWorktreeName + strayMarker},
 		{
-			"locked with reason, narrow",
-			listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, false, lockMarker,
-		},
-		{
-			"locked with reason, verbose",
-			listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, true, lockMarker + " wip",
+			"stray and locked",
+			listRow{name: testWorktreeName, stray: true, wt: core.Worktree{Locked: true}},
+			testWorktreeName + strayMarker + lockedMarker,
 		},
 	}
 	for _, tc := range cases {
-		if got := tc.row.lockCell(tc.verbose); got != tc.want {
-			t.Errorf("%s: lockCell(%v) = %q, want %q", tc.name, tc.verbose, got, tc.want)
+		if got := nameLabel(tc.row); got != tc.want {
+			t.Errorf("%s: nameLabel() = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestDirLabelIncludesLockReason(t *testing.T) {
+	cases := []struct {
+		name string
+		row  listRow
+		want string
+	}{
+		{"unlocked", listRow{dir: testWorktreeName}, testWorktreeName},
+		{
+			"locked, no reason",
+			listRow{dir: testWorktreeName, wt: core.Worktree{Locked: true}}, testWorktreeName + lockedMarker,
+		},
+		{
+			"locked, with reason",
+			listRow{dir: testWorktreeName, wt: core.Worktree{Locked: true, LockReason: "wip"}},
+			testWorktreeName + lockedMarker + " (wip)",
+		},
+	}
+	for _, tc := range cases {
+		if got := dirLabel(tc.row); got != tc.want {
+			t.Errorf("%s: dirLabel() = %q, want %q", tc.name, got, tc.want)
 		}
 	}
 }

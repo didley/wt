@@ -29,12 +29,11 @@ var errUnsupportedPorcelainVersion = errors.New("unsupported --porcelain version
 // rather than the path-prefixed "!" this used to be.
 const strayMarker = "*"
 
-// lockMarker flags the LOCK column. A plain ASCII letter rather than an
-// emoji (e.g. "🔒") — emoji glyph support varies by terminal/font, and an
-// emoji's *display* width doesn't match its rune count, which previously
-// broke column alignment (maxWidth/colorPad measured it as 1 column wide
-// when terminals render it as 2).
-const lockMarker = "L"
+// lockedMarker flags a locked worktree's name/dir column, the same
+// footnote-style convention as strayMarker (rather than a dedicated LOCK
+// column, which pushed STATE's starting position around depending on
+// whether a given row happened to be locked).
+const lockedMarker = "^"
 
 // shortHeadLen is how many characters of a detached HEAD's SHA to show.
 const shortHeadLen = 7
@@ -71,19 +70,6 @@ type listRow struct {
 	state  string
 	dirty  bool
 	stray  bool
-}
-
-// lockCell is the row's LOCK column: just the lock indicator in the narrow
-// view, plus the reason (when there is one) in the verbose view — the
-// reason is often long, so it's held back until --verbose asks for detail.
-func (r listRow) lockCell(verbose bool) string {
-	if !r.wt.Locked {
-		return ""
-	}
-	if !verbose || r.wt.LockReason == "" {
-		return lockMarker
-	}
-	return lockMarker + " " + r.wt.LockReason
 }
 
 func runList() error {
@@ -197,21 +183,35 @@ func printPorcelain(rows []listRow) {
 }
 
 // nameLabel is the row's NAME column (narrow view): the worktree's
-// conventional name, flagged with strayMarker when out of convention.
+// conventional name, flagged with strayMarker when out of convention and
+// lockedMarker when locked.
 func nameLabel(r listRow) string {
-	if r.stray {
-		return r.name + strayMarker
-	}
-	return r.name
+	return r.name + markerSuffix(r)
 }
 
 // dirLabel is the row's DIR column (verbose view): the worktree's final
-// path segment, flagged with strayMarker when out of convention.
+// path segment, flagged with strayMarker when out of convention and
+// lockedMarker (plus the lock reason, if any) when locked — verbose is
+// where that detail belongs; the narrow view just shows the marker.
 func dirLabel(r listRow) string {
-	if r.stray {
-		return r.dir + strayMarker
+	suffix := markerSuffix(r)
+	if r.wt.Locked && r.wt.LockReason != "" {
+		suffix += " (" + r.wt.LockReason + ")"
 	}
-	return r.dir
+	return r.dir + suffix
+}
+
+// markerSuffix is the stray/locked footnote markers shared by nameLabel and
+// dirLabel.
+func markerSuffix(r listRow) string {
+	var suffix string
+	if r.stray {
+		suffix += strayMarker
+	}
+	if r.wt.Locked {
+		suffix += lockedMarker
+	}
+	return suffix
 }
 
 // maxWidth returns the widest of header and every value's display width.
@@ -231,90 +231,80 @@ func maxWidth(header string, values ...string) int {
 func renderNarrow(rows []listRow) {
 	names := make([]string, len(rows))
 	branches := make([]string, len(rows))
-	locks := make([]string, len(rows))
 	for i, r := range rows {
 		names[i] = nameLabel(r)
 		branches[i] = r.branch
-		locks[i] = r.lockCell(false)
 	}
 	nameWidth := maxWidth("NAME", names...)
 	branchWidth := maxWidth("BRANCH", branches...)
-	lockWidth := maxWidth("LOCK", locks...)
 
-	header := fmt.Sprintf("%-*s  %-*s  %-*s  %s", nameWidth, "NAME", branchWidth, "BRANCH", lockWidth, "LOCK", "STATE")
+	header := fmt.Sprintf("%-*s  %-*s  %s", nameWidth, "NAME", branchWidth, "BRANCH", "STATE")
 	fmt.Println(stDim.Render(header))
 
-	anyStray := false
-	for i, r := range rows {
+	var anyStray, anyLocked bool
+	for _, r := range rows {
 		label := nameLabel(r)
-		styled := label
-		switch {
-		case r.stray:
-			styled = stWarn.Render(label)
-			anyStray = true
-		case r.wt.IsMain:
-			styled = stBold.Render(label)
-		}
+		styled := markerStyle(r).Render(label)
+		anyStray = anyStray || r.stray
+		anyLocked = anyLocked || r.wt.Locked
 
-		lock := locks[i]
-		fmt.Printf("%s%s  %-*s  %s%s  %s\n",
-			styled, colorPad(label, nameWidth), branchWidth, r.branch, lockLabel(lock), colorPad(lock, lockWidth), rowState(r))
+		fmt.Printf("%s%s  %-*s  %s\n", styled, colorPad(label, nameWidth), branchWidth, r.branch, rowState(r))
 	}
-	printFooter(rows, anyStray)
-}
-
-// lockLabel styles a non-empty lock cell (colorPad, called separately by
-// callers, still measures the unstyled lock string so ANSI codes here don't
-// throw off column width).
-func lockLabel(lock string) string {
-	if lock == "" {
-		return lock
-	}
-	return stWarn.Render(lock)
+	printFooter(rows, anyStray, anyLocked)
 }
 
 func renderVerbose(rows []listRow) {
 	paths := make([]string, len(rows))
 	dirs := make([]string, len(rows))
 	branches := make([]string, len(rows))
-	locks := make([]string, len(rows))
 	for i, r := range rows {
 		paths[i] = r.wt.Path
 		dirs[i] = dirLabel(r)
 		branches[i] = r.branch
-		locks[i] = r.lockCell(true)
 	}
 	pathWidth := maxWidth("PATH", paths...)
 	dirWidth := maxWidth("DIR", dirs...)
 	branchWidth := maxWidth("BRANCH", branches...)
-	lockWidth := maxWidth("LOCK", locks...)
 
 	header := fmt.Sprintf(
-		"%-*s  %-*s  %-*s  %-*s  %-*s  %s",
-		pathWidth, "PATH", dirWidth, "DIR", shortHeadLen, "HASH", branchWidth, "BRANCH", lockWidth, "LOCK", "STATE",
+		"%-*s  %-*s  %-*s  %-*s  %s",
+		pathWidth, "PATH", dirWidth, "DIR", shortHeadLen, "HASH", branchWidth, "BRANCH", "STATE",
 	)
 	fmt.Println(stDim.Render(header))
 
-	anyStray := false
-	for i, r := range rows {
+	var anyStray, anyLocked bool
+	for _, r := range rows {
 		path := r.wt.Path
 		styledPath := path
 		if r.wt.IsMain {
 			styledPath = stBold.Render(path)
 		}
 		dir := dirLabel(r)
-		styledDir := dir
-		if r.stray {
-			styledDir = stWarn.Render(dir)
-			anyStray = true
-		}
-		lock := locks[i]
+		styledDir := markerStyle(r).Render(dir)
+		anyStray = anyStray || r.stray
+		anyLocked = anyLocked || r.wt.Locked
 
-		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s%s  %s\n",
+		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s\n",
 			styledPath, colorPad(path, pathWidth), styledDir, colorPad(dir, dirWidth),
-			shortHeadLen, r.hash, branchWidth, r.branch, lockLabel(lock), colorPad(lock, lockWidth), rowState(r))
+			shortHeadLen, r.hash, branchWidth, r.branch, rowState(r))
 	}
-	printFooter(rows, anyStray)
+	printFooter(rows, anyStray, anyLocked)
+}
+
+// markerStyle is the NAME/DIR cell's style: stWarn for a stray worktree
+// (out of convention is the one thing worth calling out in color), stBold
+// for the main checkout, otherwise unstyled — locked is intentionally not
+// colored here; the "^" marker plus the footer legend are enough, and a
+// locked worktree isn't otherwise unusual the way a stray one is.
+func markerStyle(r listRow) lipgloss.Style {
+	switch {
+	case r.stray:
+		return stWarn
+	case r.wt.IsMain:
+		return stBold
+	default:
+		return lipgloss.NewStyle()
+	}
 }
 
 // rowState renders a row's colored state cell.
@@ -325,14 +315,17 @@ func rowState(r listRow) string {
 	return stGood.Render(r.state)
 }
 
-// printFooter prints the stray-worktree hint (once, marked the same as the
-// rows it refers to) or, failing that, a hint when there's nothing but the
-// main checkout yet.
-func printFooter(rows []listRow, anyStray bool) {
-	switch {
-	case anyStray:
+// printFooter prints one explanatory line per marker actually in use (stray,
+// locked — a worktree can be both, so these aren't mutually exclusive) or,
+// failing either, a hint when there's nothing but the main checkout yet.
+func printFooter(rows []listRow, anyStray, anyLocked bool) {
+	if anyStray {
 		fmt.Println(stDim.Render(strayMarker + " Worktree(s) not in .worktrees dir, run `wt organize` to move."))
-	case len(rows) <= 1:
+	}
+	if anyLocked {
+		fmt.Println(stDim.Render(lockedMarker + " Worktree(s) locked, run `wt unlock` to remove protection."))
+	}
+	if !anyStray && !anyLocked && len(rows) <= 1 {
 		fmt.Println(stDim.Render("no other worktrees yet — create one with `wt add`"))
 	}
 }
