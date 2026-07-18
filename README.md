@@ -2,13 +2,11 @@
 
 <img width="1071" height="732" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
 
-
 `wt` removes the friction from git worktrees. It ships as a **CLI** and a
-**desktop app (GUI)** built on the same core, so both enforce the same
-convention and give the same guarantees. Every worktree of a repository
-lives in **one predictable place** — a sibling directory named
-`<repo>.worktrees/` — and creating, listing, switching, renaming and
-removing worktrees is painless:
+**desktop app (GUI)** built on the same core, so both give the same
+guarantees. Every worktree of a repository lives in **one predictable
+place** — a sibling directory named `<repo>.worktrees/` — and creating,
+listing, switching, renaming and removing worktrees is painless:
 
 ```
 ~/Developer/my-app                     ← main checkout
@@ -44,10 +42,10 @@ three things routinely trip people up. `wt` is designed around them:
 
 3. **"Where even are my worktrees?"**
    A worktree is (almost) a full copy of your checkout, so `wt` shows them
-   *in relation to* the main one, and enforces that they all live in
+   *in relation to* the main one and enforces that they all live in
    `<repo>.worktrees/`. Worktrees created behind its back with raw
-   `git worktree add` are detected the next time you run `wt`, and you're
-   offered a one-keystroke move into place.
+   `git worktree add` are detected the next time you run `wt` and offered
+   a one-keystroke move into place.
 
 ## Install
 
@@ -227,11 +225,6 @@ notice next time it runs and offer to move it.
 Not supported (yet): the `.worktrees` convention anchors on a main
 checkout.
 
-## Roadmap
-
-- Flathub listing for the GUI (vendored go modules + screenshots; until
-  then each release ships an installable `wt.flatpak` bundle)
-
 ## Development
 
 Tasks are run with [just](https://just.systems)
@@ -240,11 +233,12 @@ Tasks are run with [just](https://just.systems)
 ```sh
 just --list      # list all recipes
 just build       # CLI -> ./wt
-just runCli -h  # run the CLI via `go run`, forwarding any args
+just runCli -h   # run the CLI via `go run`, forwarding any args
 just gui         # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
                   # headers on Linux; on Fedora Atomic run inside a
                   # distrobox, see gui/README.md)
-just check       # tests (against real git repos in temp dirs) + vet
+just check       # CLI + GUI tests (against real git repos in temp
+                  # dirs) + vet, the same gate CI applies
 just flatpak     # build + install the Flatpak for the current user
 ```
 
