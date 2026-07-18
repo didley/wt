@@ -69,24 +69,60 @@ func (m menuBarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m menuBarModel) View() string {
 	var b strings.Builder
 
+	items := m.filtered()
+	cursor := clampCursor(m.cursor, len(items))
+
 	title := m.title
 	if m.filter != "" {
 		title = "/" + m.filter
 	}
 	b.WriteString(lipgloss.NewStyle().Foreground(huhIndigo).Bold(true).Render(title))
+	b.WriteString("\n")
+
+	if m.showMoveHint(items, cursor) {
+		b.WriteString(stDim.Render("any arrow key to move  •  type to filter"))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(renderMenuBarRow(items, cursor, m.rowWidth()))
 	b.WriteString("\n\n")
 
-	items := m.filtered()
-	width := m.width
-	if width <= 0 {
-		width = defaultMenuBarWidth
+	switch {
+	case len(items) == 0:
+		b.WriteString(stDim.Render("no matches"))
+	default:
+		b.WriteString(stDim.Render(items[cursor].description))
 	}
-	cursor := clampCursor(m.cursor, len(items))
+	return b.String()
+}
+
+// showMoveHint reports whether the "any arrow key to move / type to
+// filter" hint should show: only while the very first command (m.items[0],
+// "add") is what's focused — i.e. someone hasn't moved or typed yet, or has
+// arrowed back to the start — so it says its piece once rather than on
+// every frame.
+func (m menuBarModel) showMoveHint(items []menuBarItem, cursor int) bool {
+	return len(items) > 0 && len(m.items) > 0 && items[cursor].name == m.items[0].name
+}
+
+// rowWidth is the terminal width to wrap the item row at.
+func (m menuBarModel) rowWidth() int {
+	if m.width <= 0 {
+		return defaultMenuBarWidth
+	}
+	return m.width
+}
+
+// renderMenuBarRow lays out items on one or more lines, wrapping at width,
+// with the item at cursor bracketed in huh's select-cursor/selected-option
+// colors.
+func renderMenuBarRow(items []menuBarItem, cursor, width int) string {
 	bracketStyle := lipgloss.NewStyle().Foreground(huhFuchsia).Bold(true)
 	nameStyle := lipgloss.NewStyle().Foreground(huhGreen).Bold(true)
-
 	const bracketWidth = len("[]")
 
+	var b strings.Builder
 	lineWidth := 0
 	for i, it := range items {
 		name := it.name
@@ -108,14 +144,6 @@ func (m menuBarModel) View() string {
 		}
 		b.WriteString(name)
 		lineWidth += displayLen
-	}
-	b.WriteString("\n\n")
-
-	switch {
-	case len(items) == 0:
-		b.WriteString(stDim.Render("no matches"))
-	default:
-		b.WriteString(stDim.Render(items[cursor].description))
 	}
 	return b.String()
 }

@@ -190,11 +190,36 @@ func TestMenuBarView(t *testing.T) {
 	if !contains(out, "Create a worktree") {
 		t.Errorf("View() = %q, want the focused item's description", out)
 	}
+	if !contains(out, "any arrow key to move") {
+		t.Errorf("View() with the first item focused = %q, want the move/filter hint", out)
+	}
 
 	m.filter = "zzz"
 	out = m.View()
 	if !contains(out, "no matches") {
 		t.Errorf("View() with no matches = %q, want a no-matches hint", out)
+	}
+}
+
+func TestMenuBarShowMoveHint(t *testing.T) {
+	m := newMenuBarModel("Run a command", testMenuBarItems())
+
+	if !m.showMoveHint(m.items, 0) {
+		t.Error("showMoveHint with the first item ('add') focused: want true")
+	}
+
+	m.cursor = 1
+	if m.showMoveHint(m.items, 1) {
+		t.Error("showMoveHint with a later item focused: want false")
+	}
+
+	m.cursor = 0
+	if !m.showMoveHint(m.items, 0) {
+		t.Error("showMoveHint after arrowing back to 'add': want true")
+	}
+
+	if m.showMoveHint(nil, 0) {
+		t.Error("showMoveHint with no items: want false")
 	}
 }
 
