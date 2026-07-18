@@ -28,6 +28,21 @@ func NewApp() *App { return &App{} }
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
+// Version reports the GUI build version ("dev" for local builds), stamped
+// via -ldflags at release time.
+func (a *App) Version() string { return version }
+
+// OS reports the build's GOOS ("darwin", "linux", …), so the frontend can
+// tailor OS-specific copy (e.g. how the CLI is installed/run).
+func (a *App) OS() string { return runtime.GOOS }
+
+// OpenURL opens an external link (e.g. the project's GitHub page) in the
+// system's default browser. Only called with hardcoded URLs from the About
+// dialog, never user input.
+func (a *App) OpenURL(url string) {
+	wruntime.BrowserOpenURL(a.ctx, url)
+}
+
 type ChangeView struct {
 	Kind string `json:"kind"`
 	Path string `json:"path"`

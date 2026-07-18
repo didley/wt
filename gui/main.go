@@ -18,6 +18,10 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// version is overridden at release time via -ldflags "-X main.version=…",
+// mirroring the CLI's internal/cli.version.
+var version = "dev"
+
 // fixPath replaces the process PATH with the one a login shell would see.
 // macOS launches GUI apps via launchd with a minimal PATH (no Homebrew, no
 // asdf/nvm, etc.), so git helpers like git-lfs that live outside it can't be

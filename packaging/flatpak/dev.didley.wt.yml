@@ -38,7 +38,11 @@ modules:
       build-args:
         - --share=network # dev only; Flathub requires vendored sources
     build-commands:
-      - cd gui && go build -tags desktop,production,webkit2_41 -ldflags "-s -w" -o /app/bin/wt-gui .
+      # Version comes from the metainfo's latest <release>, the single
+      # source of truth for the Linux packaging version (there's no git
+      # tag to read at this point in the build).
+      - VERSION=$(grep -m1 -oP '(?<=<release version=")[^"]+' gui/build/linux/dev.didley.wt.metainfo.xml) &&
+        cd gui && go build -tags desktop,production,webkit2_41 -ldflags "-s -w -X main.version=$VERSION" -o /app/bin/wt-gui .
       - install -Dm644 gui/build/linux/dev.didley.wt.desktop /app/share/applications/dev.didley.wt.desktop
       - install -Dm644 gui/build/linux/dev.didley.wt.metainfo.xml /app/share/metainfo/dev.didley.wt.metainfo.xml
       - install -Dm644 gui/build/linux/icons/dev.didley.wt.svg /app/share/icons/hicolor/scalable/apps/dev.didley.wt.svg

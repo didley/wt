@@ -7,11 +7,19 @@ const $ = (id) => document.getElementById(id);
 let repo = null; // current RepoView
 let recents = [];
 let selected = new Set(); // paths of worktrees checked for bulk removal
+let appVersion = "dev";
+let appOS = "linux";
 
 // ---------- boot ----------
 
 window.addEventListener("DOMContentLoaded", async () => {
   wireStaticHandlers();
+  try {
+    appVersion = await api().Version();
+    appOS = await api().OS();
+  } catch {
+    // leave the defaults
+  }
   try {
     recents = await api().RecentRepos();
     renderRecents();
@@ -50,6 +58,9 @@ async function refreshIfChanged() {
 }
 
 function wireStaticHandlers() {
+  $("about-btn").addEventListener("click", openAboutDialog);
+  $("about-repo-link").addEventListener("click", () => api().OpenURL("https://github.com/didley/wt"));
+  $("about-author-link").addEventListener("click", () => api().OpenURL("https://github.com/didley"));
   $("open-repo").addEventListener("click", async () => {
     try {
       const dir = await api().OpenRepoDialog();
@@ -502,6 +513,16 @@ function openRenameDialog(wt) {
     const renameBranch = hasBranch && $("rename-branch-too").checked;
     await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch), "Renaming worktree…");
   };
+  dlg.showModal();
+}
+
+// ---------- about dialog ----------
+
+function openAboutDialog() {
+  const dlg = $("dlg-about");
+  $("about-version").textContent = appVersion === "dev" ? "dev build" : `v${appVersion}`;
+  $("about-cli-mac").hidden = appOS !== "darwin";
+  $("about-cli-linux").hidden = appOS === "darwin";
   dlg.showModal();
 }
 
