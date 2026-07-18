@@ -59,6 +59,11 @@ async function refreshIfChanged() {
 
 function wireStaticHandlers() {
   $("about-btn").addEventListener("click", openAboutDialog);
+  // A click that lands on the <dialog> element itself (not its content) is
+  // a click on the backdrop, since the dialog fills the content box.
+  $("dlg-about").addEventListener("click", (ev) => {
+    if (ev.target === $("dlg-about")) $("dlg-about").close();
+  });
   $("about-repo-link").addEventListener("click", () => api().OpenURL("https://github.com/didley/wt"));
   $("about-author-link").addEventListener("click", () => api().OpenURL("https://github.com/didley"));
   $("open-repo").addEventListener("click", async () => {
