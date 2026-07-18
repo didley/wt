@@ -124,6 +124,9 @@ func runMenu() error {
 			Options(opts...).
 			DescriptionFunc(func() string { return descriptions[idx] }, &idx).
 			Value(&idx).
+			// Filter as you type, no leading "/" needed — there's nothing
+			// else typing a letter could mean here (it's not a text field).
+			Filtering(true).
 			WithKeyMap(menuKeyMap))
 		if err != nil {
 			if errors.Is(err, errAborted) {
