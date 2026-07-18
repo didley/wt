@@ -66,8 +66,10 @@ jobs:
           # which recent SDKs no longer link implicitly.
           CGO_LDFLAGS: -framework UniformTypeIdentifiers
         run: |
-          CGO_ENABLED=1 GOARCH=arm64 go build -tags desktop,production -ldflags "-s -w" -o wt-gui-arm64 .
-          CGO_ENABLED=1 GOARCH=amd64 go build -tags desktop,production -ldflags "-s -w" -o wt-gui-amd64 .
+          VERSION="${GITHUB_REF_NAME#v}"
+          GUI_LDFLAGS="-s -w -X main.version=${VERSION}"
+          CGO_ENABLED=1 GOARCH=arm64 go build -tags desktop,production -ldflags "$GUI_LDFLAGS" -o wt-gui-arm64 .
+          CGO_ENABLED=1 GOARCH=amd64 go build -tags desktop,production -ldflags "$GUI_LDFLAGS" -o wt-gui-amd64 .
           lipo -create -output wt-gui wt-gui-arm64 wt-gui-amd64
       - name: Build universal CLI binary
         run: |

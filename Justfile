@@ -8,20 +8,20 @@ set shell := ["bash", "-uc"]
 build:
     go build -o wt ./cmd/wt
 
-# Run the CLI via `go run`, forwarding extra args, e.g. `just run-cli -h`.
-run-cli *args:
+# Run the CLI via `go run`, forwarding extra args, e.g. `just runCli -h`.
+runCli *args:
     go run ./cmd/wt {{ args }}
 
 # Build the desktop app to gui/wt-gui.
-gui: (_gui-cmd "build" "-o" "wt-gui" ".")
+gui: (_guiCmd "build" "-o" "wt-gui" ".")
 
 # Build and run the desktop app via `go run`.
-run-gui: (_gui-cmd "run" ".")
+runGui: (_guiCmd "run" ".")
 
-# Shared build/run logic for gui and run-gui: picks the build tags and
+# Shared build/run logic for gui and runGui: picks the build tags and
 # environment the GUI module needs, and delegates to the wt-gui distrobox
 # when the host lacks GTK3/WebKitGTK 4.1 headers (Fedora Atomic).
-_gui-cmd mode *args:
+_guiCmd mode *args:
     #!/usr/bin/env bash
     set -euo pipefail
     tags="desktop,production"
@@ -45,21 +45,41 @@ _gui-cmd mode *args:
     esac
     exec go -C gui {{ mode }} -tags "$tags" {{ args }}
 
-# Run the CLI/core test suite (real git repos in temp dirs).
+# Run the CLI/core test suite (real git repos in temp dirs) and enforce
+# per-package coverage minimums, failing the way Jest's coverageThreshold
+# would. Raise these numbers as more of the CLI gets covered.
 test:
-    go test ./...
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' EXIT
+    go test -coverprofile="$dir/core.out" ./internal/core/...
+    go test -coverprofile="$dir/cli.out" ./internal/cli/...
+    go test ./cmd/...
+    ./scripts/check-coverage.sh "$dir/core.out" 75 "internal/core"
+    ./scripts/check-coverage.sh "$dir/cli.out" 30 "internal/cli"
+
+# Run the GUI module's test suite and enforce its coverage minimum.
+testGui:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' EXIT
+    go -C gui test -coverprofile="$dir/gui.out" ./...
+    ./scripts/check-coverage.sh "$dir/gui.out" 8 "gui" gui
 
 # Run go vet over both modules.
 vet:
     go vet ./...
     go -C gui vet .
 
-# Run golangci-lint (must be installed).
+# Run golangci-lint over both modules (must be installed).
 lint:
     golangci-lint run
+    cd gui && golangci-lint run
 
-# Run test + vet, the same gate CI applies.
-check: test vet
+# Run test + testGui + vet, the same gate CI applies.
+check: test testGui vet
 
 # Regenerate the man pages in man/ from the live cobra command tree.
 man:

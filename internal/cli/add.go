@@ -11,10 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var createFrom string
+var addFrom string
 
-var createCmd = &cobra.Command{
-	Use:   "create [branch]",
+var addCmd = &cobra.Command{
+	Use:   "add [branch]",
 	Short: "Create a worktree under <repo>.worktrees/",
 	Long: `Create a worktree in the conventional location <repo>.worktrees/<name>.
 
@@ -22,14 +22,14 @@ With no argument, prompts for a new or existing branch. With a branch
 argument: if the branch exists it is checked out into the new worktree,
 otherwise the branch is created (from --from, or the repo's default branch).`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runCreate,
+	RunE: runAdd,
 }
 
 func init() {
-	createCmd.Flags().StringVar(&createFrom, "from", "", "base ref when creating a new branch (default: the repo's default branch)")
+	addCmd.Flags().StringVar(&addFrom, "from", "", "base ref when creating a new branch (default: the repo's default branch)")
 }
 
-func runCreate(cmd *cobra.Command, args []string) error {
+func runAdd(cmd *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 
 	var branch string
 	var isNew bool
-	base := createFrom
+	base := addFrom
 	if len(args) == 1 {
 		branch = args[0]
 		isNew = !repo.BranchExists(branch)
@@ -50,7 +50,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		if !interactive() {
-			return errors.New("branch name required when not running interactively: wt create <branch>")
+			return errors.New("branch name required when not running interactively: wt add <branch>")
 		}
 		branch, isNew, base, err = promptForBranch(repo, wts)
 		if err != nil {
@@ -67,7 +67,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("branch %q is already checked out in %s", branch, where)
 		}
 	}
-	if !isNew && createFrom != "" {
+	if !isNew && addFrom != "" {
 		warnf("--from is ignored: branch %q already exists", branch)
 	}
 
@@ -134,7 +134,7 @@ func promptForBranch(repo *core.Repo, wts []core.Worktree) (branch string, isNew
 		return picked, false, "", err
 	}
 
-	base = createFrom
+	base = addFrom
 	if base == "" {
 		base = repo.DefaultBranch()
 	}

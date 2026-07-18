@@ -12,7 +12,7 @@ import (
 // version is overridden at release time via -ldflags "-X ...cli.version=".
 var version = "dev"
 
-var noInput bool
+var yes bool
 
 var rootCmd = &cobra.Command{
 	Use:   "wt",
@@ -35,8 +35,10 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "never prompt; fail or warn instead")
-	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
+	rootCmd.PersistentFlags().BoolVarP(&yes, "yes", "y", false, "assume yes: skip confirmations and never prompt for missing input")
+	rootCmd.CompletionOptions.DisableDefaultCmd = true // completions are generated via `wt shell-init`
+	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true}) // -h/--help covers this; no standalone `help` command
+	rootCmd.AddCommand(addCmd, listCmd, removeCmd, renameCmd, switchCmd, lockCmd, unlockCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
 }
 
 func Execute() {
@@ -56,10 +58,7 @@ func Execute() {
 // strays into place is an opt-in action via `wt organize`.
 func conventionCheck(cmd *cobra.Command) {
 	switch cmd.Name() {
-	case "doctor", "prune", "shell-init", "gen-man", "help", "completion", "version", "__complete", "__completeNoDesc":
-		return
-	}
-	if p := cmd.Parent(); p != nil && p.Name() == "completion" {
+	case "doctor", "prune", "shell-init", "gen-man", "version", "__complete", "__completeNoDesc":
 		return
 	}
 	repo, err := core.Discover(".")

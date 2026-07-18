@@ -32,6 +32,16 @@ type listRow struct {
 	stray  bool
 }
 
+func (r listRow) lockSuffix() string {
+	if !r.wt.Locked {
+		return ""
+	}
+	if r.wt.LockReason == "" {
+		return " 🔒"
+	}
+	return " 🔒 " + r.wt.LockReason
+}
+
 func runList() error {
 	repo, err := discover()
 	if err != nil {
@@ -76,7 +86,11 @@ func runList() error {
 			} else if r.stray {
 				kind = "stray"
 			}
-			fmt.Printf("%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, r.branch, kind, r.state)
+			locked := "unlocked"
+			if r.wt.Locked {
+				locked = "locked:" + r.wt.LockReason
+			}
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, r.branch, kind, r.state, locked)
 		}
 		return nil
 	}
@@ -112,15 +126,18 @@ func renderList(repo *core.Repo, rows []listRow) {
 		}
 	}
 
-	line := func(paddedName, branch, state string, dirty bool) {
+	line := func(paddedName, branch, state string, dirty bool, locked string) {
 		st := stGood.Render(state)
 		if dirty {
 			st = stWarn.Render(state)
 		}
+		if locked != "" {
+			st += stWarn.Render(locked)
+		}
 		fmt.Printf("%s  %-*s  %s\n", paddedName, bwidth, branch, st)
 	}
 
-	line(stBold.Render(main.name)+colorPad(main.name, width), main.branch, main.state, main.dirty)
+	line(stBold.Render(main.name)+colorPad(main.name, width), main.branch, main.state, main.dirty, main.lockSuffix())
 	if len(linked) > 0 {
 		fmt.Println(stDim.Render(repo.Name() + ".worktrees/"))
 		for i, r := range linked {
@@ -128,13 +145,13 @@ func renderList(repo *core.Repo, rows []listRow) {
 			if i == len(linked)-1 {
 				conn = "└─ "
 			}
-			line(stDim.Render(conn)+r.name+colorPad(conn+r.name, width), r.branch, r.state, r.dirty)
+			line(stDim.Render(conn)+r.name+colorPad(conn+r.name, width), r.branch, r.state, r.dirty, r.lockSuffix())
 		}
 	} else if len(stray) == 0 {
-		fmt.Println(stDim.Render("no worktrees yet — create one with `wt create`"))
+		fmt.Println(stDim.Render("no worktrees yet — create one with `wt add`"))
 	}
 	for _, r := range stray {
-		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt organize`)"), bwidth, r.branch, r.state)
+		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt organize`)"), bwidth, r.branch, r.state+r.lockSuffix())
 	}
 }
 

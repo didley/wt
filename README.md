@@ -93,7 +93,8 @@ so use one or the other.
 ### Shell integration (recommended)
 
 Lets `wt switch` / `wt cd` change your shell's directory (a child process
-can't do that on its own). Add one line to your shell rc:
+can't do that on its own), and adds tab completion for wt's commands and
+flags. Add one line to your shell rc:
 
 ```sh
 eval "$(wt shell-init bash)"          # ~/.bashrc
@@ -104,15 +105,17 @@ wt shell-init fish | source           # ~/.config/fish/config.fish
 ## CLI usage
 
 Run `wt` with no arguments to list worktrees. All commands are interactive
-when run in a terminal and scriptable with flags.
+when run in a terminal and scriptable with flags. Pass `-y`/`--yes`
+(available on every command) to skip confirmation prompts and fail instead
+of prompting for missing input — the flag to use in scripts and CI.
 
-### `wt create [branch]`
+### `wt add [branch]`
 
 Create a worktree under `<repo>.worktrees/`.
 
-- `wt create` — interactive: new branch (name + base ref) or an existing
+- `wt add` — interactive: new branch (name + base ref) or an existing
   branch that has no worktree yet.
-- `wt create fix-login` — non-interactive. If the branch exists it's checked
+- `wt add fix-login` — non-interactive. If the branch exists it's checked
   out into the worktree; otherwise it's created from the repo's default
   branch (override with `--from <ref>`).
 
@@ -121,9 +124,9 @@ Branch names containing `/` get flattened directory names:
 
 ### `wt list` (alias: `ls`)
 
-Show all worktrees relative to the main checkout with their branch and
-dirty state. `--porcelain` prints stable tab-separated output for scripts:
-`path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state`.
+Show all worktrees relative to the main checkout with their branch, dirty
+state, and lock state. `--porcelain` prints stable tab-separated output for
+scripts: `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]`.
 
 ### `wt switch [worktree]` (alias: `cd`)
 
@@ -143,12 +146,23 @@ Flags for scripting:
 |---|---|
 | `--stash` | stash uncommitted changes before removing |
 | `--discard` | permanently discard uncommitted changes |
-| `--yes` / `-y` | skip confirmation prompts |
+| `--yes` / `-y` | skip confirmation prompts (global flag) |
 | `--delete-branch` | also delete the branch (refused if unmerged) |
 | `--force-delete-branch` | also delete the branch, even if unmerged |
 
 A stash created by `wt` lives in the *repository*, not the worktree, so it
 survives the removal — recover it from anywhere with `git stash pop`.
+
+Locked worktrees are refused unless you confirm the override (or pass
+`--yes`) — see `wt lock` below.
+
+### `wt lock [worktree]` / `wt unlock [worktree]`
+
+Lock a worktree to protect it from `wt remove` and `wt prune` (and their
+git equivalents) — handy for one on removable media, or one you want to
+leave untouched mid-review. Locking never affects the branch or its
+commits. `--reason "<text>"` records why; it shows up in `wt list` and
+`git worktree list`.
 
 ### `wt rename <worktree> <new-name>`
 
@@ -169,16 +183,22 @@ use `wt` — no background watcher needed.
 
 ### `wt shell-init <bash|zsh|fish>`
 
-Print the shell wrapper function (see [Shell integration](#shell-integration-recommended)).
+Print the shell wrapper function and tab completions (see
+[Shell integration](#shell-integration-recommended)). Run it directly in a
+terminal (not piped into `eval`/`source`) to pick which piece(s) you want
+via an interactive prompt; piped or scripted usage always emits both.
 
 ## The GUI
 
 The desktop app (`gui/`, Wails v2) shares `internal/core` with the CLI —
 same behaviors, same safety copy:
 
-- worktree cards with dirty status and expandable changed-file lists
+- worktree cards with dirty status, lock status, and expandable
+  changed-file lists
 - create / rename / remove dialogs: the branch is always kept, dirty
-  trees get the explicit stash-or-discard choice
+  trees get the explicit stash-or-discard choice, locked trees need an
+  explicit override
+- lock / unlock worktrees, with an optional reason
 - a banner with a one-click move for worktrees living outside
   `.worktrees/`
 
@@ -220,7 +240,7 @@ Tasks are run with [just](https://just.systems)
 ```sh
 just --list      # list all recipes
 just build       # CLI -> ./wt
-just run-cli -h  # run the CLI via `go run`, forwarding any args
+just runCli -h  # run the CLI via `go run`, forwarding any args
 just gui         # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
                   # headers on Linux; on Fedora Atomic run inside a
                   # distrobox, see gui/README.md)

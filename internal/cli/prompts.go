@@ -25,7 +25,7 @@ func warnf(format string, a ...any) {
 }
 
 func interactive() bool {
-	return !noInput && term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stderr.Fd()))
+	return !yes && term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stderr.Fd()))
 }
 
 // runPrompt renders huh fields on stderr so stdout stays clean for command
