@@ -45,21 +45,41 @@ _guiCmd mode *args:
     esac
     exec go -C gui {{ mode }} -tags "$tags" {{ args }}
 
-# Run the CLI/core test suite (real git repos in temp dirs).
+# Run the CLI/core test suite (real git repos in temp dirs) and enforce
+# per-package coverage minimums, failing the way Jest's coverageThreshold
+# would. Raise these numbers as more of the CLI gets covered.
 test:
-    go test ./...
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' EXIT
+    go test -coverprofile="$dir/core.out" ./internal/core/...
+    go test -coverprofile="$dir/cli.out" ./internal/cli/...
+    go test ./cmd/...
+    ./scripts/check-coverage.sh "$dir/core.out" 75 "internal/core"
+    ./scripts/check-coverage.sh "$dir/cli.out" 30 "internal/cli"
+
+# Run the GUI module's test suite and enforce its coverage minimum.
+testGui:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' EXIT
+    go -C gui test -coverprofile="$dir/gui.out" ./...
+    ./scripts/check-coverage.sh "$dir/gui.out" 8 "gui" gui
 
 # Run go vet over both modules.
 vet:
     go vet ./...
     go -C gui vet .
 
-# Run golangci-lint (must be installed).
+# Run golangci-lint over both modules (must be installed).
 lint:
     golangci-lint run
+    cd gui && golangci-lint run
 
-# Run test + vet, the same gate CI applies.
-check: test vet
+# Run test + testGui + vet, the same gate CI applies.
+check: test testGui vet
 
 # Regenerate the man pages in man/ from the live cobra command tree.
 man:
