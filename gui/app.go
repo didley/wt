@@ -769,11 +769,19 @@ func (a *App) ForgetRepo(path string) []string {
 	return a.RecentRepos()
 }
 
-// GetOpenTarget returns the app's configured open target and, when it's
-// "custom", the associated command template.
-func (a *App) GetOpenTarget() (string, string) {
+// OpenTargetView reports the app's configured open target and, when it's
+// "custom", the associated command template. Wails' JS bridge only carries
+// a single non-error return value per bound method, so this is a struct
+// rather than two return values.
+type OpenTargetView struct {
+	Target        string `json:"target"`
+	CustomOpenCmd string `json:"customOpenCmd"`
+}
+
+// GetOpenTarget returns the app's configured open target.
+func (a *App) GetOpenTarget() OpenTargetView {
 	cfg := loadConfig()
-	return cfg.OpenTarget, cfg.CustomOpenCmd
+	return OpenTargetView{Target: cfg.OpenTarget, CustomOpenCmd: cfg.CustomOpenCmd}
 }
 
 // SetOpenTarget persists the open target the "Open" button should use.

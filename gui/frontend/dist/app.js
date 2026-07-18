@@ -9,6 +9,22 @@ let recents = [];
 let selected = new Set(); // paths of worktrees checked for bulk removal
 let appVersion = "dev";
 let appOS = "linux";
+let openTarget = { target: "", customOpenCmd: "" };
+
+// Display label for each open target, shared by the Settings dropdown's
+// implicit labels (in index.html) and the per-card "Open in …" button.
+const OPEN_TARGET_LABELS = {
+  "": "File manager",
+  code: "VS Code",
+  cursor: "Cursor",
+  zed: "Zed",
+  subl: "Sublime Text",
+  custom: "custom command",
+};
+
+function openTargetLabel() {
+  return OPEN_TARGET_LABELS[openTarget.target] ?? "File manager";
+}
 
 // ---------- boot ----------
 
@@ -19,6 +35,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     appOS = await api().OS();
   } catch {
     // leave the defaults
+  }
+  try {
+    openTarget = await api().GetOpenTarget();
+  } catch {
+    // leave the default (file manager)
   }
   try {
     recents = await api().RecentRepos();
@@ -268,7 +289,9 @@ function card(wt, expand) {
 
   const actions = document.createElement("div");
   actions.className = "card-actions";
-  actions.appendChild(btn("Open", () => api().OpenPath(wt.path).catch((e) => toast(String(e), true))));
+  actions.appendChild(
+    btn(`Open in ${openTargetLabel()}`, () => api().OpenPath(wt.path).catch((e) => toast(String(e), true)))
+  );
   actions.appendChild(
     btn("Copy path", async () => {
       await api().CopyPath(wt.path);
@@ -597,9 +620,9 @@ function updateOpenTargetCustomVisibility() {
 
 async function openSettingsDialog() {
   const dlg = $("dlg-settings");
-  const [target, customCmd] = await api().GetOpenTarget();
-  $("open-target").value = target;
-  $("open-target-custom").value = customCmd;
+  openTarget = await api().GetOpenTarget();
+  $("open-target").value = openTarget.target;
+  $("open-target-custom").value = openTarget.customOpenCmd;
   updateOpenTargetCustomVisibility();
 
   dlg.returnValue = "cancel";
@@ -609,6 +632,8 @@ async function openSettingsDialog() {
     const newCustomCmd = $("open-target-custom").value.trim();
     try {
       await api().SetOpenTarget(newTarget, newCustomCmd);
+      openTarget = { target: newTarget, customOpenCmd: newCustomCmd };
+      if (repo) renderRepo();
     } catch (e) {
       toast(String(e), true);
     }

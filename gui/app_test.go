@@ -150,26 +150,26 @@ func TestGetSetOpenTarget(t *testing.T) {
 	withConfigDir(t)
 	a := &App{}
 
-	target, customCmd := a.GetOpenTarget()
-	if target != "" || customCmd != "" {
-		t.Errorf("GetOpenTarget() on missing config = (%q, %q), want empty", target, customCmd)
+	info := a.GetOpenTarget()
+	if info.Target != "" || info.CustomOpenCmd != "" {
+		t.Errorf("GetOpenTarget() on missing config = %+v, want empty", info)
 	}
 
 	if err := a.SetOpenTarget(openTargetCode, ""); err != nil {
 		t.Fatalf("SetOpenTarget(code) error: %v", err)
 	}
-	target, _ = a.GetOpenTarget()
-	if target != openTargetCode {
-		t.Errorf("GetOpenTarget() after SetOpenTarget(code) = %q, want %q", target, openTargetCode)
+	info = a.GetOpenTarget()
+	if info.Target != openTargetCode {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(code) = %q, want %q", info.Target, openTargetCode)
 	}
 
 	const customTemplate = "code {path}"
 	if err := a.SetOpenTarget(openTargetCustom, customTemplate); err != nil {
 		t.Fatalf("SetOpenTarget(custom) error: %v", err)
 	}
-	target, customCmd = a.GetOpenTarget()
-	if target != openTargetCustom || customCmd != customTemplate {
-		t.Errorf("GetOpenTarget() after SetOpenTarget(custom) = (%q, %q)", target, customCmd)
+	info = a.GetOpenTarget()
+	if info.Target != openTargetCustom || info.CustomOpenCmd != customTemplate {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(custom) = %+v", info)
 	}
 
 	if err := a.SetOpenTarget(openTargetCustom, ""); err == nil {
