@@ -28,8 +28,8 @@ func TestWriteCompletionInvalidShell(t *testing.T) {
 
 func TestRunShellInitUnsupportedShell(t *testing.T) {
 	withYes(t)
-	if err := runShellInit(shellInitCmd, []string{"powershell"}); err == nil {
-		t.Fatal("runShellInit(powershell): want error, got nil")
+	if err := runSetup(setupCmd, []string{"powershell"}); err == nil {
+		t.Fatal("runSetup(powershell): want error, got nil")
 	}
 }
 
@@ -44,7 +44,7 @@ func TestRunShellInitBash(t *testing.T) {
 	os.Stdout = w
 	t.Cleanup(func() { os.Stdout = origStdout })
 
-	runErr := runShellInit(shellInitCmd, []string{shellBash})
+	runErr := runSetup(setupCmd, []string{shellBash})
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -52,10 +52,10 @@ func TestRunShellInitBash(t *testing.T) {
 
 	out, _ := io.ReadAll(r)
 	if runErr != nil {
-		t.Fatalf("runShellInit(bash): %v", runErr)
+		t.Fatalf("runSetup(bash): %v", runErr)
 	}
 	if len(out) == 0 {
-		t.Error("runShellInit(bash) produced no output")
+		t.Error("runSetup(bash) produced no output")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestRunShellInitFishAndZsh(t *testing.T) {
 		}
 		os.Stdout = w
 
-		runErr := runShellInit(shellInitCmd, []string{shell})
+		runErr := runSetup(setupCmd, []string{shell})
 		if err := w.Close(); err != nil {
 			t.Fatal(err)
 		}
@@ -77,10 +77,10 @@ func TestRunShellInitFishAndZsh(t *testing.T) {
 
 		out, _ := io.ReadAll(r)
 		if runErr != nil {
-			t.Fatalf("runShellInit(%s): %v", shell, runErr)
+			t.Fatalf("runSetup(%s): %v", shell, runErr)
 		}
 		if len(out) == 0 {
-			t.Errorf("runShellInit(%s) produced no output", shell)
+			t.Errorf("runSetup(%s) produced no output", shell)
 		}
 	}
 }

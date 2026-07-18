@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/didley/wt/internal/core"
+	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
 
@@ -41,6 +42,58 @@ func runPrompt(fields ...huh.Field) error {
 		return fmt.Errorf("prompt: %w", err)
 	}
 	return nil
+}
+
+// menuCommands lists every subcommand worth offering interactively — the
+// whole tree except `list` itself (already shown before the menu appears)
+// and hidden commands (e.g. `gen-man`, which exists only for the release
+// pipeline) — deliberately ordered by usage frequency and grouped by what
+// they're used for (add next to remove, lock next to unlock), rather than
+// alphabetically. TestMenuCommandsCoverAllVisibleCommands checks this list
+// against rootCmd.Commands() so a forgotten new command fails loudly instead
+// of just being missing from the menu.
+func menuCommands() []*cobra.Command {
+	return []*cobra.Command{
+		addCmd, removeCmd, switchCmd, renameCmd,
+		lockCmd, unlockCmd, organizeCmd, pruneCmd, setupCmd,
+	}
+}
+
+// runMenu offers an interactive choice of what to do next after `wt` (no
+// args) has printed the worktree list, then runs the chosen command. Labels
+// are derived from each command's own name and -h description (Short) so
+// there's a single source of truth for both.
+func runMenu() error {
+	const exitIdx = -1
+	const verboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
+	const extraOptions = 2    // "list --verbose" and "Exit"
+	cmds := menuCommands()
+	opts := make([]huh.Option[int], 0, len(cmds)+extraOptions)
+	for i, c := range cmds {
+		opts = append(opts, huh.NewOption(c.Name()+" — "+c.Short, i))
+	}
+	opts = append(opts, huh.NewOption("list --verbose — "+verboseHelp, verboseListIdx))
+	opts = append(opts, huh.NewOption("Exit", exitIdx))
+
+	idx := exitIdx
+	err := runPrompt(huh.NewSelect[int]().Title("What next?").Options(opts...).Value(&idx))
+	if err != nil {
+		if errors.Is(err, errAborted) {
+			return nil
+		}
+		return err
+	}
+	switch idx {
+	case exitIdx:
+		return nil
+	case verboseListIdx:
+		listVerbose = true
+		return runList()
+	}
+	cmd := cmds[idx]
+	// cmd.RunE is one of this package's own run* functions (e.g. runAdd);
+	// wrapping here would break errors.Is(err, errAborted) checks upstream.
+	return cmd.RunE(cmd, nil) //nolint:wrapcheck
 }
 
 func confirm(title, description string, def bool) (bool, error) {

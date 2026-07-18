@@ -14,25 +14,25 @@ import (
 
 var errUnsupportedShell = errors.New("unsupported shell")
 
-var shellInitCmd = &cobra.Command{
-	Use:   "shell-init <bash|zsh|fish>",
-	Short: "Print shell integration: the `wt switch`/`cd` wrapper and tab completions",
-	Long: `Print shell integration for wt: a shell function that makes
+var setupCmd = &cobra.Command{
+	Use:   "setup <bash|zsh|fish>",
+	Short: "Set up shell integration: lets `wt switch`/`cd` change directory and enables tab completion",
+	Long: `Set up shell integration for wt: a shell function that makes
 ` + "`wt switch`" + ` (and ` + "`wt cd`" + `) change your shell's directory, and tab
 completion for wt's commands and flags.
 
 Install it by adding one line to your shell's rc file — this emits both
 pieces so the one-liner keeps working unattended:
 
-  bash:  eval "$(wt shell-init bash)"   # ~/.bashrc
-  zsh:   eval "$(wt shell-init zsh)"    # ~/.zshrc
-  fish:  wt shell-init fish | source    # ~/.config/fish/config.fish
+  bash:  eval "$(wt setup bash)"   # ~/.bashrc
+  zsh:   eval "$(wt setup zsh)"    # ~/.zshrc
+  fish:  wt setup fish | source    # ~/.config/fish/config.fish
 
 Run it directly in a terminal (not piped into eval/source) to pick which
 piece(s) you want instead.`,
-	Args:      cobra.ExactArgs(1),
+	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: []string{shellBash, shellZsh, shellFish},
-	RunE:      runShellInit,
+	RunE:      runSetup,
 }
 
 const (
@@ -46,8 +46,11 @@ const (
 	shellFish = "fish"
 )
 
-func runShellInit(_ *cobra.Command, args []string) error {
-	shell := args[0]
+func runSetup(_ *cobra.Command, args []string) error {
+	shell, err := resolveShell(args)
+	if err != nil {
+		return err
+	}
 	if shell != shellBash && shell != shellZsh && shell != shellFish {
 		return fmt.Errorf("%w %q (bash, zsh and fish are supported)", errUnsupportedShell, shell)
 	}
@@ -75,6 +78,27 @@ func runShellInit(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("writing shell integration: %w", err)
 	}
 	return nil
+}
+
+// resolveShell resolves the target shell, either from args or, with none
+// given, an interactive prompt.
+func resolveShell(args []string) (string, error) {
+	if len(args) == 1 {
+		return args[0], nil
+	}
+	if !interactive() {
+		return "", fmt.Errorf("%w: wt setup <bash|zsh|fish>", errTargetRequired)
+	}
+	var shell string
+	err := runPrompt(huh.NewSelect[string]().
+		Title("Which shell?").
+		Options(
+			huh.NewOption("bash", shellBash),
+			huh.NewOption("zsh", shellZsh),
+			huh.NewOption("fish", shellFish),
+		).
+		Value(&shell))
+	return shell, err
 }
 
 func writeIntegration(out *bytes.Buffer, integ, shell string) error {
