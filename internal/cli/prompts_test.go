@@ -62,37 +62,43 @@ func TestMenuCommandsCoverAllVisibleCommands(t *testing.T) {
 	}
 }
 
-func TestMenuOptions(t *testing.T) {
+func TestMenuBarEntries(t *testing.T) {
 	cmds := menuCommands()
-	opts, descriptions := menuOptions(cmds)
+	items, dispatch := menuBarEntries(cmds)
 
 	const wantExtra = 2 // "list --verbose" and "Exit"
-	if len(opts) != len(cmds)+wantExtra {
-		t.Fatalf("menuOptions() returned %d options, want %d", len(opts), len(cmds)+wantExtra)
+	if len(items) != len(cmds)+wantExtra {
+		t.Fatalf("menuBarEntries() returned %d items, want %d", len(items), len(cmds)+wantExtra)
+	}
+	if len(dispatch) != len(items) {
+		t.Fatalf("dispatch map has %d entries, want %d (one per item)", len(dispatch), len(items))
 	}
 
 	for i, c := range cmds {
-		if opts[i].Key != c.Name() {
-			t.Errorf("option %d label = %q, want command name %q", i, opts[i].Key, c.Name())
+		if items[i].name != c.Name() {
+			t.Errorf("item %d name = %q, want command name %q", i, items[i].name, c.Name())
 		}
-		if descriptions[i] != c.Short {
-			t.Errorf("description[%d] = %q, want %q", i, descriptions[i], c.Short)
+		if items[i].description != c.Short {
+			t.Errorf("item %d description = %q, want %q", i, items[i].description, c.Short)
+		}
+		if dispatch[c.Name()] != i {
+			t.Errorf("dispatch[%q] = %d, want %d", c.Name(), dispatch[c.Name()], i)
 		}
 	}
 
-	if descriptions[menuVerboseListIdx] != verboseHelp {
-		t.Errorf("description[verboseListIdx] = %q, want %q", descriptions[menuVerboseListIdx], verboseHelp)
+	last, secondLast := items[len(items)-1], items[len(items)-2]
+	if last.name != "Exit" || dispatch["Exit"] != menuExitIdx {
+		t.Errorf("last item = %+v (dispatch %d), want Exit/%d", last, dispatch["Exit"], menuExitIdx)
 	}
-	if descriptions[menuExitIdx] == "" {
-		t.Error("description[exitIdx] is empty")
+	if secondLast.name != "list --verbose" || dispatch["list --verbose"] != menuVerboseListIdx {
+		t.Errorf("second-to-last item = %+v (dispatch %d), want list --verbose/%d",
+			secondLast, dispatch["list --verbose"], menuVerboseListIdx)
 	}
-
-	last, secondLast := opts[len(opts)-1], opts[len(opts)-2]
-	if last.Key != "Exit" || last.Value != menuExitIdx {
-		t.Errorf("last option = %+v, want Exit/%d", last, menuExitIdx)
+	if secondLast.description != verboseHelp {
+		t.Errorf("list --verbose description = %q, want %q", secondLast.description, verboseHelp)
 	}
-	if secondLast.Key != "list --verbose" || secondLast.Value != menuVerboseListIdx {
-		t.Errorf("second-to-last option = %+v, want list --verbose/%d", secondLast, menuVerboseListIdx)
+	if last.description == "" {
+		t.Error("Exit item has an empty description")
 	}
 }
 

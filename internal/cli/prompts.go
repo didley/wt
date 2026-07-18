@@ -23,6 +23,21 @@ var (
 	stBold = lipgloss.NewStyle().Bold(true)
 )
 
+// menuAccent is huh's own default ("Charm" theme) accent color for a
+// select's cursor/selected option — reused by menuBarModel (menubar.go) so
+// the custom horizontal bar reads as the same widget family as every
+// huh.Select/MultiSelect elsewhere in the app, not a one-off.
+const menuAccent = lipgloss.Color("#F780E2")
+
+// wtTheme is huh's default theme with the select cursor changed to a
+// bracket style ("[•] "), so a single-choice huh.Select reads visually
+// consistent with a huh.MultiSelect's own "[ ]"/"[x]" checkboxes.
+func wtTheme() *huh.Theme {
+	t := huh.ThemeCharm()
+	t.Focused.SelectSelector = lipgloss.NewStyle().Foreground(menuAccent).SetString("[•] ")
+	return t
+}
+
 func warnf(format string, a ...any) {
 	fmt.Fprintln(os.Stderr, stWarn.Render(fmt.Sprintf(format, a...)))
 }
@@ -34,7 +49,7 @@ func interactive() bool {
 // runPrompt renders huh fields on stderr so stdout stays clean for command
 // output (the shell wrapper for `wt switch` captures stdout).
 func runPrompt(fields ...huh.Field) error {
-	err := huh.NewForm(huh.NewGroup(fields...)).WithOutput(os.Stderr).Run()
+	err := huh.NewForm(huh.NewGroup(fields...)).WithTheme(wtTheme()).WithOutput(os.Stderr).Run()
 	if errors.Is(err, huh.ErrUserAborted) {
 		return errAborted
 	}
@@ -59,75 +74,49 @@ func menuCommands() []*cobra.Command {
 	}
 }
 
-// menuHeight caps the visible rows in the "Run a command" list so it stays
-// usable on short terminal windows: beyond this it scrolls (huh shows a
-// scroll indicator) rather than growing the prompt to fit every command.
-const menuHeight = 7
-
-// menuExitIdx and menuVerboseListIdx are menuOptions' two synthetic entries,
-// alongside the real command indices into menuCommands().
+// menuExitIdx and menuVerboseListIdx are menuBarEntries' two synthetic
+// entries, alongside the real command indices into menuCommands().
 const (
 	menuExitIdx        = -1
 	menuVerboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
 )
 
-// menuOptions builds the "Run a command" select's options and per-index
-// descriptions from cmds — split out from runMenu (which also drives the
-// interactive huh.Form) so this pure part can be unit tested directly.
-func menuOptions(cmds []*cobra.Command) ([]huh.Option[int], map[int]string) {
-	const extraOptions = 2 // "list --verbose" and "Exit"
-	descriptions := map[int]string{
-		menuExitIdx:        "Leave this menu",
-		menuVerboseListIdx: verboseHelp,
-	}
-	opts := make([]huh.Option[int], 0, len(cmds)+extraOptions)
+// menuBarEntries builds the "Run a command" bar's items and a name ->
+// dispatch-index map (command indices into cmds, plus the synthetic
+// menuExitIdx/menuVerboseListIdx) — split out from runMenu (which also
+// drives the interactive tea.Program) so this pure part is unit testable
+// without a real terminal.
+func menuBarEntries(cmds []*cobra.Command) ([]menuBarItem, map[string]int) {
+	const extraEntries = 2 // "list --verbose" and "Exit"
+	items := make([]menuBarItem, 0, len(cmds)+extraEntries)
+	dispatch := make(map[string]int, len(cmds)+extraEntries)
 	for i, c := range cmds {
-		opts = append(opts, huh.NewOption(c.Name(), i))
-		descriptions[i] = c.Short
+		items = append(items, menuBarItem{name: c.Name(), description: c.Short})
+		dispatch[c.Name()] = i
 	}
-	opts = append(opts, huh.NewOption("list --verbose", menuVerboseListIdx))
-	opts = append(opts, huh.NewOption("Exit", menuExitIdx))
-	return opts, descriptions
+	items = append(items, menuBarItem{name: "list --verbose", description: verboseHelp})
+	dispatch["list --verbose"] = menuVerboseListIdx
+	items = append(items, menuBarItem{name: "Exit", description: "Leave this menu"})
+	dispatch["Exit"] = menuExitIdx
+	return items, dispatch
 }
 
 // runMenu offers an interactive choice of what to do next after `wt` (no
-// args) has printed the worktree list, then runs the chosen command.
+// args) has printed the worktree list, then runs the chosen command. It's a
+// horizontal bar (runMenuBar, in menubar.go): every command name laid out on
+// one row, filterable by typing, arrow keys to move — see menubar.go's
+// menuBarModel doc comment for why this isn't a huh.Select.
 //
-// Rows show just the command name — the description is shown once, in a
-// single line below the title, and swaps in dynamically for whichever
-// command is currently focused (huh.DescriptionFunc bound to the value
-// pointer). That keeps every command's name visible at once (a flat
-// "name — description" list doesn't fit a narrow terminal and buries the
-// names in prose) while still surfacing what each one does.
-//
-// It also loops: once a command finishes, the menu comes back around
-// rather than exiting, so you're never dropped out of the session after
-// one action — picking a command and then returning here plays the role a
-// "back" option would.
+// It loops: once a command finishes, the menu comes back around rather than
+// exiting, so you're never dropped out of the session after one action.
+// Cancelling out of a command's own sub-prompts (Ctrl+C/Esc) also returns
+// here rather than exiting `wt` entirely — same idea, one level down.
 func runMenu() error {
-	const exitIdx = menuExitIdx
-	const verboseListIdx = menuVerboseListIdx
 	cmds := menuCommands()
-	opts, descriptions := menuOptions(cmds)
-
-	// Up/down are the default select keys; left/right are enabled too, as
-	// equivalent ways to move through the (still vertical) list.
-	menuKeyMap := huh.NewDefaultKeyMap()
-	menuKeyMap.Select.Left.SetEnabled(true)
-	menuKeyMap.Select.Right.SetEnabled(true)
+	items, dispatch := menuBarEntries(cmds)
 
 	for {
-		idx := exitIdx
-		err := runPrompt(huh.NewSelect[int]().
-			Title("Run a command").
-			Height(menuHeight).
-			Options(opts...).
-			DescriptionFunc(func() string { return descriptions[idx] }, &idx).
-			Value(&idx).
-			// Filter as you type, no leading "/" needed — there's nothing
-			// else typing a letter could mean here (it's not a text field).
-			Filtering(true).
-			WithKeyMap(menuKeyMap))
+		name, err := runMenuBar("Run a command", items)
 		if err != nil {
 			if errors.Is(err, errAborted) {
 				return nil
@@ -135,26 +124,30 @@ func runMenu() error {
 			return err
 		}
 
-		switch idx {
-		case exitIdx:
+		switch idx := dispatch[name]; idx {
+		case menuExitIdx:
 			return nil
-		case verboseListIdx:
+		case menuVerboseListIdx:
 			listVerbose = true
 			if err := runList(); err != nil {
 				return err
 			}
 			fmt.Println()
-			continue
+		default:
+			cmd := cmds[idx]
+			if err := cmd.RunE(cmd, nil); err != nil {
+				if errors.Is(err, errAborted) {
+					fmt.Println(stDim.Render("Cancelled — back to the menu."))
+					fmt.Println()
+					continue
+				}
+				// cmd.RunE is one of this package's own run* functions (e.g.
+				// runAdd); wrapping here would break errors.Is(err, errAborted)
+				// checks upstream.
+				return err //nolint:wrapcheck
+			}
+			fmt.Println()
 		}
-
-		cmd := cmds[idx]
-		if err := cmd.RunE(cmd, nil); err != nil {
-			// cmd.RunE is one of this package's own run* functions (e.g.
-			// runAdd); wrapping here would break errors.Is(err, errAborted)
-			// checks upstream.
-			return err //nolint:wrapcheck
-		}
-		fmt.Println()
 	}
 }
 
