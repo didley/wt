@@ -16,7 +16,7 @@ var errUnsupportedShell = errors.New("unsupported shell")
 
 var setupCmd = &cobra.Command{
 	Use:   "setup <bash|zsh|fish>",
-	Short: "Set up shell integration: lets `wt switch`/`cd` change directory and enables tab completion",
+	Short: "Set up shell integration (cd on switch, tab completion)",
 	Long: `Set up shell integration for wt: a shell function that makes
 ` + "`wt switch`" + ` (and ` + "`wt cd`" + `) change your shell's directory, and tab
 completion for wt's commands and flags.

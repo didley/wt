@@ -35,6 +35,13 @@ Use `just <recipe>` (see `Justfile`; `just --list` to enumerate). Key ones:
 
 Run `just check` and `just lint` before opening a PR for review.
 
+## CLI output design
+
+All CLI output (command list, `-h` text, `wt list`, the interactive menu)
+is designed to fit an 80-column terminal without wrapping. Keep `Short`
+command descriptions and menu labels short enough that `<name>  <Short>`
+fits on one line even for the longest command name in the tree.
+
 ## Structure
 
 - `cmd/wt` — CLI entrypoint.

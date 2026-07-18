@@ -76,7 +76,7 @@ func runMenu() error {
 	opts = append(opts, huh.NewOption("Exit", exitIdx))
 
 	idx := exitIdx
-	err := runPrompt(huh.NewSelect[int]().Title("What next?").Options(opts...).Value(&idx))
+	err := runPrompt(huh.NewSelect[int]().Title("Run a command").Options(opts...).Value(&idx))
 	if err != nil {
 		if errors.Is(err, errAborted) {
 			return nil

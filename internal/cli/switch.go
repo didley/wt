@@ -13,7 +13,7 @@ var errDirGone = errors.New("no longer exists")
 var switchCmd = &cobra.Command{
 	Use:     "switch [worktree]",
 	Aliases: []string{"cd"},
-	Short:   "Jump to a worktree (prints its path; cds with `wt setup` installed)",
+	Short:   "Jump to a worktree (cds with `wt setup` installed)",
 	Long: `Pick a worktree and print its path to stdout.
 
 With the shell integration installed (see ` + "`wt setup`" + `), the wt
