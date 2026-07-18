@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"unicode/utf8"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/didley/wt/internal/core"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +27,13 @@ var errUnsupportedPorcelainVersion = errors.New("unsupported --porcelain version
 // and prefixes the footer hint that explains it — a footnote-style marker
 // rather than the path-prefixed "!" this used to be.
 const strayMarker = "*"
+
+// lockMarker flags the LOCK column. A plain ASCII letter rather than an
+// emoji (e.g. "🔒") — emoji glyph support varies by terminal/font, and an
+// emoji's *display* width doesn't match its rune count, which previously
+// broke column alignment (maxWidth/colorPad measured it as 1 column wide
+// when terminals render it as 2).
+const lockMarker = "L"
 
 // shortHeadLen is how many characters of a detached HEAD's SHA to show.
 const shortHeadLen = 7
@@ -73,9 +80,9 @@ func (r listRow) lockCell(verbose bool) string {
 		return ""
 	}
 	if !verbose || r.wt.LockReason == "" {
-		return "🔒"
+		return lockMarker
 	}
-	return "🔒 " + r.wt.LockReason
+	return lockMarker + " " + r.wt.LockReason
 }
 
 func runList() error {
@@ -191,10 +198,13 @@ func dirLabel(r listRow) string {
 }
 
 // maxWidth returns the widest of header and every value's display width.
+// Uses lipgloss.Width rather than utf8.RuneCountInString/len: a rune isn't
+// always one terminal column (e.g. wide/CJK runes or emoji), so measuring
+// runes rather than display width silently breaks column alignment.
 func maxWidth(header string, values ...string) int {
-	width := utf8.RuneCountInString(header)
+	width := lipgloss.Width(header)
 	for _, v := range values {
-		if w := utf8.RuneCountInString(v); w > width {
+		if w := lipgloss.Width(v); w > width {
 			width = w
 		}
 	}
@@ -231,9 +241,19 @@ func renderNarrow(rows []listRow) {
 
 		lock := locks[i]
 		fmt.Printf("%s%s  %-*s  %s%s  %s\n",
-			styled, colorPad(label, nameWidth), branchWidth, r.branch, lock, colorPad(lock, lockWidth), rowState(r))
+			styled, colorPad(label, nameWidth), branchWidth, r.branch, lockLabel(lock), colorPad(lock, lockWidth), rowState(r))
 	}
 	printFooter(rows, anyStray)
+}
+
+// lockLabel styles a non-empty lock cell (colorPad, called separately by
+// callers, still measures the unstyled lock string so ANSI codes here don't
+// throw off column width).
+func lockLabel(lock string) string {
+	if lock == "" {
+		return lock
+	}
+	return stWarn.Render(lock)
 }
 
 func renderVerbose(rows []listRow) {
@@ -275,7 +295,7 @@ func renderVerbose(rows []listRow) {
 
 		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s%s  %s\n",
 			styledPath, colorPad(path, pathWidth), styledDir, colorPad(dir, dirWidth),
-			shortHeadLen, r.hash, branchWidth, r.branch, lock, colorPad(lock, lockWidth), rowState(r))
+			shortHeadLen, r.hash, branchWidth, r.branch, lockLabel(lock), colorPad(lock, lockWidth), rowState(r))
 	}
 	printFooter(rows, anyStray)
 }
@@ -301,9 +321,9 @@ func printFooter(rows []listRow, anyStray bool) {
 }
 
 // colorPad returns the spaces needed to pad a styled cell to width, since
-// %-*s can't account for invisible ANSI escape codes.
+// %-*s can't account for invisible ANSI escape codes or wide runes.
 func colorPad(visible string, width int) string {
-	pad := width - utf8.RuneCountInString(visible)
+	pad := width - lipgloss.Width(visible)
 	if pad <= 0 {
 		return ""
 	}

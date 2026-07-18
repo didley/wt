@@ -92,10 +92,16 @@ func TestLockCell(t *testing.T) {
 	}{
 		{"unlocked, narrow", listRow{wt: core.Worktree{Locked: false}}, false, ""},
 		{"unlocked, verbose", listRow{wt: core.Worktree{Locked: false}}, true, ""},
-		{"locked no reason, narrow", listRow{wt: core.Worktree{Locked: true}}, false, "🔒"},
-		{"locked no reason, verbose", listRow{wt: core.Worktree{Locked: true}}, true, "🔒"},
-		{"locked with reason, narrow", listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, false, "🔒"},
-		{"locked with reason, verbose", listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, true, "🔒 wip"},
+		{"locked no reason, narrow", listRow{wt: core.Worktree{Locked: true}}, false, lockMarker},
+		{"locked no reason, verbose", listRow{wt: core.Worktree{Locked: true}}, true, lockMarker},
+		{
+			"locked with reason, narrow",
+			listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, false, lockMarker,
+		},
+		{
+			"locked with reason, verbose",
+			listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, true, lockMarker + " wip",
+		},
 	}
 	for _, tc := range cases {
 		if got := tc.row.lockCell(tc.verbose); got != tc.want {
