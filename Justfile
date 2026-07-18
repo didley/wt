@@ -8,20 +8,20 @@ set shell := ["bash", "-uc"]
 build:
     go build -o wt ./cmd/wt
 
-# Run the CLI via `go run`, forwarding extra args, e.g. `just run-cli -h`.
-run-cli *args:
+# Run the CLI via `go run`, forwarding extra args, e.g. `just runCli -h`.
+runCli *args:
     go run ./cmd/wt {{ args }}
 
 # Build the desktop app to gui/wt-gui.
-gui: (_gui-cmd "build" "-o" "wt-gui" ".")
+gui: (_guiCmd "build" "-o" "wt-gui" ".")
 
 # Build and run the desktop app via `go run`.
-run-gui: (_gui-cmd "run" ".")
+runGui: (_guiCmd "run" ".")
 
-# Shared build/run logic for gui and run-gui: picks the build tags and
+# Shared build/run logic for gui and runGui: picks the build tags and
 # environment the GUI module needs, and delegates to the wt-gui distrobox
 # when the host lacks GTK3/WebKitGTK 4.1 headers (Fedora Atomic).
-_gui-cmd mode *args:
+_guiCmd mode *args:
     #!/usr/bin/env bash
     set -euo pipefail
     tags="desktop,production"

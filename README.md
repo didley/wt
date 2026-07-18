@@ -234,7 +234,7 @@ Tasks are run with [just](https://just.systems)
 ```sh
 just --list      # list all recipes
 just build       # CLI -> ./wt
-just run-cli -h  # run the CLI via `go run`, forwarding any args
+just runCli -h  # run the CLI via `go run`, forwarding any args
 just gui         # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
                   # headers on Linux; on Fedora Atomic run inside a
                   # distrobox, see gui/README.md)
