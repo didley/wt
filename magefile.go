@@ -22,29 +22,63 @@ func Build() error {
 	return sh.RunV("go", "build", "-o", "wt", "./cmd/wt")
 }
 
+// RunCli builds and runs the CLI directly via `go run`, skipping the
+// build-then-invoke-the-binary step. Useful for quick local iteration.
+func RunCli() error {
+	return sh.RunV("go", "run", "./cmd/wt")
+}
+
 // Gui compiles the desktop app to gui/wt-gui. Linux needs GTK3 and
 // WebKitGTK 4.1 headers; when the host lacks them (Fedora Atomic) the
 // build is delegated to the wt-gui distrobox automatically.
 func Gui() error {
-	tags := "desktop,production"
-	env := map[string]string{}
+	tags, env, viaDistrobox, err := guiEnv()
+	if err != nil {
+		return err
+	}
+	if viaDistrobox {
+		return sh.RunV("distrobox", "enter", "wt-gui", "--",
+			"go", "-C", "gui", "build", "-tags", tags, "-o", "wt-gui", ".")
+	}
+	return sh.RunWithV(env, "go", "-C", "gui", "build", "-tags", tags, "-o", "wt-gui", ".")
+}
+
+// RunGui builds and runs the desktop app directly via `go run`, skipping the
+// build-then-launch-the-binary step. Same header/distrobox handling as Gui.
+func RunGui() error {
+	tags, env, viaDistrobox, err := guiEnv()
+	if err != nil {
+		return err
+	}
+	if viaDistrobox {
+		return sh.RunV("distrobox", "enter", "wt-gui", "--",
+			"go", "-C", "gui", "run", "-tags", tags, ".")
+	}
+	return sh.RunWithV(env, "go", "-C", "gui", "run", "-tags", tags, ".")
+}
+
+// guiEnv returns the build tags and environment needed to compile the GUI
+// module, plus whether the build must be delegated to the wt-gui distrobox
+// because the host lacks GTK3/WebKitGTK 4.1 headers (Fedora Atomic).
+func guiEnv() (tags string, env map[string]string, viaDistrobox bool, err error) {
+	tags = "desktop,production"
+	env = map[string]string{}
 	switch runtime.GOOS {
 	case "linux":
 		tags += ",webkit2_41"
 		if sh.Run("pkg-config", "--exists", "gtk+-3.0", "webkit2gtk-4.1") != nil {
 			if _, err := exec.LookPath("distrobox"); err != nil {
-				return errors.New("GTK3/WebKitGTK 4.1 headers not found and no distrobox available — see gui/README.md")
+				return "", nil, false, errors.New("GTK3/WebKitGTK 4.1 headers not found and no distrobox available — see gui/README.md")
 			}
-			fmt.Println("host lacks GTK3/WebKitGTK headers; building inside the wt-gui distrobox")
-			return sh.RunV("distrobox", "enter", "wt-gui", "--",
-				"go", "-C", "gui", "build", "-tags", tags, "-o", "wt-gui", ".")
+			fmt.Println("host lacks GTK3/WebKitGTK headers; using the wt-gui distrobox")
+			return tags, nil, true, nil
 		}
 	case "darwin":
 		// UTType (wails file dialogs) lives in UniformTypeIdentifiers,
 		// which recent SDKs no longer link implicitly.
 		env["CGO_LDFLAGS"] = "-framework UniformTypeIdentifiers"
 	}
-	return sh.RunWithV(env, "go", "-C", "gui", "build", "-tags", tags, "-o", "wt-gui", ".")
+	return tags, env, false, nil
 }
 
 // Test runs the CLI/core test suite (real git repos in temp dirs).
