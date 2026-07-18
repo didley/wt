@@ -47,7 +47,7 @@ func confirm(title, description string, def bool) (bool, error) {
 	return v, err
 }
 
-func pickWorktree(repo *core.Repo, wts []core.Worktree, title string) (core.Worktree, error) {
+func worktreeOptions(repo *core.Repo, wts []core.Worktree) []huh.Option[int] {
 	opts := make([]huh.Option[int], len(wts))
 	for i, w := range wts {
 		label := repo.WorktreeName(w)
@@ -64,10 +64,37 @@ func pickWorktree(repo *core.Repo, wts []core.Worktree, title string) (core.Work
 		}
 		opts[i] = huh.NewOption(label, i)
 	}
+	return opts
+}
+
+func pickWorktree(repo *core.Repo, wts []core.Worktree, title string) (core.Worktree, error) {
 	var idx int
-	err := runPrompt(huh.NewSelect[int]().Title(title).Options(opts...).Value(&idx))
+	err := runPrompt(huh.NewSelect[int]().Title(title).Options(worktreeOptions(repo, wts)...).Value(&idx))
 	if err != nil {
 		return core.Worktree{}, err
 	}
 	return wts[idx], nil
+}
+
+// pickWorktrees lets the user select one or more worktrees at once.
+func pickWorktrees(repo *core.Repo, wts []core.Worktree, title string) ([]core.Worktree, error) {
+	var idxs []int
+	err := runPrompt(huh.NewMultiSelect[int]().
+		Title(title).
+		Options(worktreeOptions(repo, wts)...).
+		Validate(func(vals []int) error {
+			if len(vals) == 0 {
+				return errors.New("select at least one worktree")
+			}
+			return nil
+		}).
+		Value(&idxs))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]core.Worktree, len(idxs))
+	for i, idx := range idxs {
+		out[i] = wts[idx]
+	}
+	return out, nil
 }

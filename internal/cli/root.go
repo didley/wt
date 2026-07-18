@@ -36,7 +36,7 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "never prompt; fail or warn instead")
-	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, shellInitCmd, genManCmd)
+	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
 }
 
 func Execute() {
@@ -56,7 +56,7 @@ func Execute() {
 // strays into place is an opt-in action via `wt organize`.
 func conventionCheck(cmd *cobra.Command) {
 	switch cmd.Name() {
-	case "doctor", "shell-init", "gen-man", "help", "completion", "version", "__complete", "__completeNoDesc":
+	case "doctor", "prune", "shell-init", "gen-man", "help", "completion", "version", "__complete", "__completeNoDesc":
 		return
 	}
 	if p := cmd.Parent(); p != nil && p.Name() == "completion" {

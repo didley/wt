@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 
 let repo = null; // current RepoView
 let recents = [];
+let selected = new Set(); // paths of worktrees checked for bulk removal
 
 // ---------- boot ----------
 
@@ -59,9 +60,17 @@ function wireStaticHandlers() {
   });
   $("new-worktree").addEventListener("click", openCreateDialog);
   $("move-strays").addEventListener("click", async () => {
-    await action(() => api().MoveStrays(repo.mainPath));
+    await action(() => api().MoveStrays(repo.mainPath), "Moving worktrees…");
+  });
+  $("prune-stale").addEventListener("click", async () => {
+    await action(() => api().PruneStale(repo.mainPath), "Pruning stale entries…");
   });
   $("create-branch").addEventListener("input", updateCreateHint);
+  $("bulk-clear").addEventListener("click", () => {
+    selected.clear();
+    renderRepo();
+  });
+  $("bulk-remove").addEventListener("click", openRemoveBulkDialog);
 }
 
 // ---------- data / actions ----------
@@ -79,7 +88,10 @@ async function loadRepo(path) {
 }
 
 // Runs a mutating call, toasts its message or error, reloads the repo view.
-async function action(fn) {
+// Shows a busy overlay for the duration so slow git operations (removing
+// several worktrees, moving strays, etc.) don't look like nothing happened.
+async function action(fn, label = "Working…") {
+  setBusy(true, label);
   try {
     const msg = await fn();
     if (msg) toast(msg, false);
@@ -87,6 +99,12 @@ async function action(fn) {
     toast(String(e), true);
   }
   if (repo) await loadRepo(repo.mainPath);
+  setBusy(false);
+}
+
+function setBusy(isBusy, label) {
+  $("busy-overlay").hidden = !isBusy;
+  if (label) $("busy-label").textContent = label;
 }
 
 // ---------- rendering ----------
@@ -136,13 +154,38 @@ function renderRepo() {
     $("stray-dir").textContent = repo.worktreesDir;
   }
 
+  const pruneBanner = $("prunable-banner");
+  pruneBanner.hidden = repo.prunableCount === 0;
+  if (repo.prunableCount > 0) {
+    $("prunable-text").textContent =
+      repo.prunableCount === 1
+        ? "1 worktree entry is stale (its directory is gone)"
+        : `${repo.prunableCount} worktree entries are stale (their directories are gone)`;
+  }
+
   const section = $("worktrees");
   // Keep "show changed files" panels open across auto-refresh re-renders.
   const expanded = new Set(
     [...section.querySelectorAll(".card > details[open]")].map((d) => d.closest(".card").dataset.path)
   );
+  // section.replaceChildren() below rebuilds every card from scratch, which
+  // can leave the scroll container's position stuck after items are removed
+  // (see #main's overflow-anchor: none) — restore it explicitly.
+  const main = $("main");
+  const scrollTop = main.scrollTop;
   section.replaceChildren();
+  const livePaths = new Set(repo.worktrees.map((wt) => wt.path));
+  for (const path of selected) if (!livePaths.has(path)) selected.delete(path);
   for (const wt of repo.worktrees) section.appendChild(card(wt, expanded.has(wt.path)));
+  updateBulkBar();
+  main.scrollTop = Math.min(scrollTop, main.scrollHeight - main.clientHeight);
+}
+
+function updateBulkBar() {
+  const bar = $("bulk-bar");
+  bar.hidden = selected.size === 0;
+  $("main").classList.toggle("bulk-active", selected.size > 0);
+  $("bulk-count").textContent = selected.size === 1 ? "1 worktree selected" : `${selected.size} worktrees selected`;
 }
 
 function card(wt, expand) {
@@ -152,6 +195,19 @@ function card(wt, expand) {
 
   const row = document.createElement("div");
   row.className = "card-row";
+
+  if (!wt.isMain) {
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = selected.has(wt.path);
+    check.title = "Select for bulk removal";
+    check.addEventListener("change", () => {
+      if (check.checked) selected.add(wt.path);
+      else selected.delete(wt.path);
+      updateBulkBar();
+    });
+    row.appendChild(check);
+  }
 
   const name = document.createElement("span");
   name.className = "wt-name";
@@ -252,7 +308,7 @@ function openCreateDialog() {
     if (dlg.returnValue !== "ok") return;
     const branch = $("create-branch").value.trim();
     const base = $("create-base").value.trim();
-    await action(() => api().CreateWorktree(repo.mainPath, branch, base));
+    await action(() => api().CreateWorktree(repo.mainPath, branch, base), "Creating worktree…");
   };
   dlg.showModal();
 }
@@ -307,7 +363,70 @@ function openRemoveDialog(wt) {
     const act = dirty ? dlg.querySelector('input[name="remove-action"]:checked').value : "";
     const del = hasBranch && $("remove-del-branch").checked;
     const force = del && $("remove-force-branch").checked;
-    await action(() => api().RemoveWorktree(repo.mainPath, wt.path, act, del, force));
+    await action(() => api().RemoveWorktree(repo.mainPath, wt.path, act, del, force), "Removing worktree…");
+  };
+  dlg.showModal();
+}
+
+// ---------- remove (bulk) dialog ----------
+
+function openRemoveBulkDialog() {
+  const targets = repo.worktrees.filter((wt) => selected.has(wt.path));
+  if (targets.length === 0) return;
+
+  const dlg = $("dlg-remove-bulk");
+  $("remove-bulk-count").textContent = targets.length;
+
+  const list = $("remove-bulk-list");
+  list.replaceChildren();
+  for (const wt of targets) {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "mono";
+    name.textContent = wt.name;
+    const branch = document.createElement("span");
+    branch.className = "kind";
+    branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
+    li.append(name, branch);
+    list.appendChild(li);
+  }
+
+  const dirtyTargets = targets.filter((wt) => wt.dirty && !wt.prunable);
+  const dirtyBox = $("remove-bulk-dirty");
+  dirtyBox.hidden = dirtyTargets.length === 0;
+  if (!dirtyBox.hidden) {
+    const wrap = $("remove-bulk-changes");
+    wrap.replaceChildren();
+    for (const wt of dirtyTargets) {
+      const name = document.createElement("p");
+      name.className = "mono small";
+      name.textContent = wt.name;
+      wrap.append(name, changeList(wt.changes));
+    }
+    dlg.querySelector('input[name="remove-bulk-action"][value="stash"]').checked = true;
+  }
+
+  const branchTargets = targets.filter((wt) => !!wt.branch);
+  $("remove-bulk-branch-opts").hidden = branchTargets.length === 0;
+  $("remove-bulk-del-branch").checked = false;
+  $("remove-bulk-force-branch").checked = false;
+  $("remove-bulk-force-wrap").hidden = true;
+  $("remove-bulk-del-branch").onchange = (ev) => {
+    $("remove-bulk-force-wrap").hidden = !ev.target.checked;
+    if (!ev.target.checked) $("remove-bulk-force-branch").checked = false;
+  };
+
+  dlg.returnValue = "cancel";
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    const dirty = !dirtyBox.hidden;
+    const act = dirty ? dlg.querySelector('input[name="remove-bulk-action"]:checked').value : "";
+    const del = branchTargets.length > 0 && $("remove-bulk-del-branch").checked;
+    const force = del && $("remove-bulk-force-branch").checked;
+    const paths = targets.map((wt) => wt.path);
+    const label = targets.length === 1 ? "Removing worktree…" : `Removing ${targets.length} worktrees…`;
+    await action(() => api().RemoveWorktrees(repo.mainPath, paths, act, del, force), label);
+    selected.clear();
   };
   dlg.showModal();
 }
@@ -329,7 +448,7 @@ function openRenameDialog(wt) {
     const newName = $("rename-new").value.trim();
     if (!newName || newName === wt.name) return;
     const renameBranch = hasBranch && $("rename-branch-too").checked;
-    await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch));
+    await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch), "Renaming worktree…");
   };
   dlg.showModal();
 }

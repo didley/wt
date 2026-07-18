@@ -43,7 +43,28 @@
           <button id="move-strays" class="btn warn">Move them into place</button>
         </div>
 
+        <div id="prunable-banner" class="banner" hidden>
+          <div>
+            <strong id="prunable-text"></strong>
+            <p class="muted">Their directories were deleted outside of wt (e.g. manually, or a tmp dir got cleared). Pruning drops the stale bookkeeping; branches are not affected.</p>
+          </div>
+          <button id="prune-stale" class="btn warn">Prune</button>
+        </div>
+
+        <div id="bulk-bar" hidden>
+          <div><strong id="bulk-count"></strong></div>
+          <div>
+            <button id="bulk-clear" class="btn">Clear selection</button>
+            <button id="bulk-remove" class="btn danger">Remove selected…</button>
+          </div>
+        </div>
+
         <section id="worktrees"></section>
+      </div>
+
+      <div id="busy-overlay" hidden>
+        <div class="spinner"></div>
+        <span id="busy-label">Working…</span>
       </div>
     </main>
   </div>
@@ -93,6 +114,36 @@
       <footer>
         <button value="cancel" class="btn">Cancel</button>
         <button id="remove-confirm" value="ok" class="btn danger">Remove worktree</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Remove (bulk) -->
+  <dialog id="dlg-remove-bulk">
+    <form method="dialog">
+      <h2>Remove <span id="remove-bulk-count"></span> worktrees?</h2>
+      <ul id="remove-bulk-list" class="changes"></ul>
+      <p class="notice">Branches are NOT deleted — they stay in the repository and can be checked out again from any worktree.</p>
+
+      <div id="remove-bulk-dirty" hidden>
+        <p><strong>Some have uncommitted changes:</strong></p>
+        <div id="remove-bulk-changes"></div>
+        <label class="radio"><input type="radio" name="remove-bulk-action" value="stash" checked />
+          <span><strong>Stash them</strong> — saved in each repo's stash, recover anytime with <code>git stash pop</code>.</span></label>
+        <label class="radio"><input type="radio" name="remove-bulk-action" value="discard" />
+          <span><strong>Discard them</strong> — permanently deletes the changes listed above.</span></label>
+      </div>
+
+      <div id="remove-bulk-branch-opts">
+        <label class="check"><input type="checkbox" id="remove-bulk-del-branch" />
+          <span>Also delete their branches <span class="muted">(usually you keep them — the worktree removal already freed the checkout)</span></span></label>
+        <label class="check indent" id="remove-bulk-force-wrap" hidden><input type="checkbox" id="remove-bulk-force-branch" />
+          <span>Even if they have unmerged commits <strong class="danger">(they will be lost)</strong></span></label>
+      </div>
+
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="remove-bulk-confirm" value="ok" class="btn danger">Remove worktrees</button>
       </footer>
     </form>
   </dialog>

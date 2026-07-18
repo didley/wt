@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 
 	"github.com/didley/wt/internal/core"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -53,6 +54,7 @@ type RepoView struct {
 	DefaultBranch     string         `json:"defaultBranch"`
 	Worktrees         []WorktreeView `json:"worktrees"`
 	StrayCount        int            `json:"strayCount"`
+	PrunableCount     int            `json:"prunableCount"`
 	AvailableBranches []string       `json:"availableBranches"`
 }
 
@@ -92,6 +94,9 @@ func (a *App) LoadRepo(path string) (*RepoView, error) {
 	}
 	checkedOut := map[string]bool{}
 	for _, w := range wts {
+		if w.Prunable {
+			view.PrunableCount++
+		}
 		wv := WorktreeView{
 			Name:       repo.WorktreeName(w),
 			Path:       w.Path,
@@ -240,6 +245,76 @@ func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forc
 	return msg, nil
 }
 
+// RemoveWorktrees removes several worktrees in one call, applying the same
+// action (stash/discard/"") and branch-deletion choice to every one of them.
+// Individual failures don't stop the rest; they're joined into the returned
+// error alongside a summary of what did succeed.
+func (a *App) RemoveWorktrees(repoPath string, wtPaths []string, action string, deleteBranch, forceDeleteBranch bool) (string, error) {
+	repo, err := core.Discover(repoPath)
+	if err != nil {
+		return "", err
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return "", err
+	}
+	byPath := make(map[string]*core.Worktree, len(wts))
+	for i := range wts {
+		byPath[wts[i].Path] = &wts[i]
+	}
+
+	var removed []string
+	var errs []error
+	for _, wtPath := range wtPaths {
+		target := byPath[wtPath]
+		if target == nil || target.IsMain {
+			continue
+		}
+		name := repo.WorktreeName(*target)
+
+		if !target.Prunable {
+			changes, err := core.WorktreeStatus(target.Path)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: cannot inspect worktree state: %w", name, err))
+				continue
+			}
+			if len(changes) > 0 && action != "stash" && action != "discard" {
+				errs = append(errs, fmt.Errorf("%s: has uncommitted changes", name))
+				continue
+			}
+			if action == "stash" && len(changes) > 0 {
+				msg := fmt.Sprintf("wt: removed worktree %q (branch %s)", name, target.Branch)
+				if err := core.Stash(target.Path, msg); err != nil {
+					errs = append(errs, fmt.Errorf("%s: stash failed, worktree untouched: %w", name, err))
+					continue
+				}
+			}
+		}
+
+		force := action != "" || target.Prunable
+		if err := repo.RemoveWorktree(target.Path, force); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", name, err))
+			continue
+		}
+		removed = append(removed, name)
+
+		if target.Branch != "" && (deleteBranch || forceDeleteBranch) {
+			if err := repo.DeleteBranch(target.Branch, forceDeleteBranch); err != nil {
+				errs = append(errs, fmt.Errorf("%s: removed, but branch %q was kept: %w", name, target.Branch, err))
+			}
+		}
+	}
+
+	var msg string
+	if len(removed) > 0 {
+		msg = fmt.Sprintf("Removed %d worktree(s): %s.", len(removed), strings.Join(removed, ", "))
+	}
+	if len(errs) > 0 {
+		return msg, errors.Join(errs...)
+	}
+	return msg, nil
+}
+
 func (a *App) RenameWorktree(repoPath, wtPath, newName string, renameBranch bool) (string, error) {
 	repo, err := core.Discover(repoPath)
 	if err != nil {
@@ -320,6 +395,39 @@ func (a *App) MoveStrays(repoPath string) (string, error) {
 		return "", fmt.Errorf("moved %d of %d; first failure: %w", moved, len(vs), firstErr)
 	}
 	return fmt.Sprintf("Moved %d worktree(s) into %s", moved, repo.WorktreesDir()), nil
+}
+
+// PruneStale drops stale worktree administrative entries (directories that
+// were deleted outside of wt). Branches are never affected.
+func (a *App) PruneStale(repoPath string) (string, error) {
+	repo, err := core.Discover(repoPath)
+	if err != nil {
+		return "", err
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return "", err
+	}
+	n := 0
+	for _, w := range wts {
+		if w.Prunable {
+			n++
+		}
+	}
+	if n == 0 {
+		return "Nothing to prune.", nil
+	}
+	if err := repo.PruneWorktrees(); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Pruned %d stale worktree entr%s", n, plural(n, "y", "ies")), nil
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // OpenPath reveals a directory in the system file manager.

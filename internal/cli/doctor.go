@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/didley/wt/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +18,7 @@ var doctorCmd = &cobra.Command{
   - worktrees outside <repo>.worktrees/ (e.g. created with raw
     ` + "`git worktree add`" + `) are reported and can be moved into place
   - stale entries whose directories were deleted manually are pruned
+    (also available standalone as ` + "`wt prune`" + `)
 
 Interactively each fix is confirmed; --fix applies everything.`,
 	Args: cobra.NoArgs,
@@ -40,12 +40,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	}
 
 	vs := repo.Violations(wts)
-	var prunable []core.Worktree
-	for _, w := range wts {
-		if w.Prunable {
-			prunable = append(prunable, w)
-		}
-	}
+	prunable := prunableWorktrees(wts)
 
 	if len(vs) == 0 && len(prunable) == 0 {
 		fmt.Printf("%s all worktrees live inside %s\n", stGood.Render("✓"), repo.WorktreesDir())
