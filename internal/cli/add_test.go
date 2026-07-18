@@ -57,10 +57,10 @@ func TestRunAddAlreadyCheckedOut(t *testing.T) {
 	withYes(t)
 	repo := newTestRepo(t)
 
-	if err := runAdd(addCmd, []string{"feature/a"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchA}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
-	if err := runAdd(addCmd, []string{"feature/a"}); err == nil {
+	if err := runAdd(addCmd, []string{testBranchA}); err == nil {
 		t.Fatal("runAdd on already-checked-out branch: want error, got nil")
 	}
 	_ = repo

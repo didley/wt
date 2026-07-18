@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,9 +12,11 @@ import (
 	"golang.org/x/term"
 )
 
+var errUnsupportedShell = errors.New("unsupported shell")
+
 var shellInitCmd = &cobra.Command{
-	Use:       "shell-init <bash|zsh|fish>",
-	Short:     "Print shell integration: the `wt switch`/`cd` wrapper and tab completions",
+	Use:   "shell-init <bash|zsh|fish>",
+	Short: "Print shell integration: the `wt switch`/`cd` wrapper and tab completions",
 	Long: `Print shell integration for wt: a shell function that makes
 ` + "`wt switch`" + ` (and ` + "`wt cd`" + `) change your shell's directory, and tab
 completion for wt's commands and flags.
@@ -28,7 +31,7 @@ pieces so the one-liner keeps working unattended:
 Run it directly in a terminal (not piped into eval/source) to pick which
 piece(s) you want instead.`,
 	Args:      cobra.ExactArgs(1),
-	ValidArgs: []string{"bash", "zsh", "fish"},
+	ValidArgs: []string{shellBash, shellZsh, shellFish},
 	RunE:      runShellInit,
 }
 
@@ -37,10 +40,16 @@ const (
 	integCompletions = "completions"
 )
 
-func runShellInit(cmd *cobra.Command, args []string) error {
+const (
+	shellBash = "bash"
+	shellZsh  = "zsh"
+	shellFish = "fish"
+)
+
+func runShellInit(_ *cobra.Command, args []string) error {
 	shell := args[0]
-	if shell != "bash" && shell != "zsh" && shell != "fish" {
-		return fmt.Errorf("unsupported shell %q (bash, zsh and fish are supported)", shell)
+	if shell != shellBash && shell != shellZsh && shell != shellFish {
+		return fmt.Errorf("%w %q (bash, zsh and fish are supported)", errUnsupportedShell, shell)
 	}
 
 	want := []string{integWrapper, integCompletions}
@@ -58,22 +67,31 @@ func runShellInit(cmd *cobra.Command, args []string) error {
 
 	var out bytes.Buffer
 	for _, integ := range want {
-		switch integ {
-		case integWrapper:
-			switch shell {
-			case "bash", "zsh":
-				out.WriteString(posixWrapper)
-			case "fish":
-				out.WriteString(fishWrapper)
-			}
-		case integCompletions:
-			if err := writeCompletion(&out, shell); err != nil {
-				return err
-			}
+		if err := writeIntegration(&out, integ, shell); err != nil {
+			return err
 		}
 	}
-	_, err := io.Copy(os.Stdout, &out)
-	return err
+	if _, err := io.Copy(os.Stdout, &out); err != nil {
+		return fmt.Errorf("writing shell integration: %w", err)
+	}
+	return nil
+}
+
+func writeIntegration(out *bytes.Buffer, integ, shell string) error {
+	switch integ {
+	case integWrapper:
+		switch shell {
+		case shellBash, shellZsh:
+			out.WriteString(posixWrapper)
+		case shellFish:
+			out.WriteString(fishWrapper)
+		}
+	case integCompletions:
+		if err := writeCompletion(out, shell); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func promptIntegrations() ([]string, error) {
@@ -92,16 +110,21 @@ func promptIntegrations() ([]string, error) {
 }
 
 func writeCompletion(w io.Writer, shell string) error {
+	var err error
 	switch shell {
-	case "bash":
-		return rootCmd.GenBashCompletionV2(w, true)
-	case "zsh":
-		return rootCmd.GenZshCompletion(w)
-	case "fish":
-		return rootCmd.GenFishCompletion(w, true)
+	case shellBash:
+		err = rootCmd.GenBashCompletionV2(w, true)
+	case shellZsh:
+		err = rootCmd.GenZshCompletion(w)
+	case shellFish:
+		err = rootCmd.GenFishCompletion(w, true)
 	default:
-		return fmt.Errorf("unsupported shell %q", shell)
+		return fmt.Errorf("%w %q", errUnsupportedShell, shell)
 	}
+	if err != nil {
+		return fmt.Errorf("generating %s completion: %w", shell, err)
+	}
+	return nil
 }
 
 const posixWrapper = `# wt shell integration: makes 'wt switch' / 'wt cd' change directory.

@@ -13,6 +13,8 @@ import (
 
 var errAborted = errors.New("aborted")
 
+var errNoSelection = errors.New("select at least one worktree")
+
 var (
 	stDim  = lipgloss.NewStyle().Faint(true)
 	stGood = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
@@ -35,7 +37,10 @@ func runPrompt(fields ...huh.Field) error {
 	if errors.Is(err, huh.ErrUserAborted) {
 		return errAborted
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("prompt: %w", err)
+	}
+	return nil
 }
 
 func confirm(title, description string, def bool) (bool, error) {
@@ -84,7 +89,7 @@ func pickWorktrees(repo *core.Repo, wts []core.Worktree, title string) ([]core.W
 		Options(worktreeOptions(repo, wts)...).
 		Validate(func(vals []int) error {
 			if len(vals) == 0 {
-				return errors.New("select at least one worktree")
+				return errNoSelection
 			}
 			return nil
 		}).

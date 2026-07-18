@@ -22,7 +22,7 @@ func TestLoginShellPath(t *testing.T) {
 
 func TestLoginShellPath_DefaultsWhenShellEmpty(t *testing.T) {
 	path, err := loginShellPath("")
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != goosDarwin {
 		// /bin/zsh isn't guaranteed to exist off macOS; just check we don't
 		// silently swallow the resulting error.
 		if err == nil && path == "" {
@@ -45,7 +45,7 @@ func TestLoginShellPath_InvalidShell(t *testing.T) {
 }
 
 func TestFixPath_NoopOffDarwin(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == goosDarwin {
 		t.Skip("fixPath is expected to act on darwin; covered by manual verification")
 	}
 	before := os.Getenv("PATH")

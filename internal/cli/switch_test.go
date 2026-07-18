@@ -20,7 +20,7 @@ func TestRunSwitch(t *testing.T) {
 func TestRunSwitchUnknown(t *testing.T) {
 	withYes(t)
 	newTestRepo(t)
-	if err := runSwitch(switchCmd, []string{"nope"}); err == nil {
+	if err := runSwitch(switchCmd, []string{testNameNope}); err == nil {
 		t.Fatal("runSwitch on unknown target: want error, got nil")
 	}
 }

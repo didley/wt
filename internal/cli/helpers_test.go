@@ -14,7 +14,7 @@ func TestLinkedWorktrees(t *testing.T) {
 	wts := []core.Worktree{
 		{Path: "/main", IsMain: true},
 		{Path: "/bare", Bare: true},
-		{Path: "/feature", Branch: "feature/x"},
+		{Path: "/feature", Branch: testBranchX},
 	}
 	got := linkedWorktrees(wts)
 	if len(got) != 1 || got[0].Path != "/feature" {
@@ -34,7 +34,7 @@ func TestResolveWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := repo.ConventionalPath("feature-x")
-	if err := repo.AddWorktree(path, "feature/x", "main", true); err != nil {
+	if err := repo.AddWorktree(path, testBranchX, "main", true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 	wts, err := repo.Worktrees()
@@ -42,7 +42,7 @@ func TestResolveWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cases := []string{"feature-x", "feature/x", path}
+	cases := []string{"feature-x", testBranchX, path}
 	for _, arg := range cases {
 		got, err := resolveWorktree(repo, wts, arg)
 		if err != nil {
@@ -54,7 +54,7 @@ func TestResolveWorktree(t *testing.T) {
 		}
 	}
 
-	if _, err := resolveWorktree(repo, wts, "nope"); err == nil {
+	if _, err := resolveWorktree(repo, wts, testNameNope); err == nil {
 		t.Error("resolveWorktree(nope): want error, got nil")
 	}
 }

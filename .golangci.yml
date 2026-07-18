@@ -1,0 +1,83 @@
+version: "2"
+
+linters:
+  default: all
+  disable:
+    # Needs an explicit allow/deny list to do anything meaningful; not
+    # requested, skip until there's an actual dependency policy.
+    - depguard
+    # Deprecated in favor of gomodguard_v2, which has the same "needs an
+    # actual policy first" problem as depguard above.
+    - gomodguard
+    # cobra.Command{} / huh form literals intentionally leave most fields
+    # zero-valued; flags nearly every struct literal in this codebase.
+    - exhaustruct
+    # cobra's registration pattern is package-level `var xCmd = &cobra.Command{...}`
+    # (see internal/cli/root.go) — idiomatic here, not a smell.
+    - gochecknoglobals
+    # root.go's init() wires up subcommands — standard cobra usage.
+    - gochecknoinits
+    # Pedantic about interface-return shapes; not worth the churn here.
+    - ireturn
+    # Pure blank-line-placement opinions, orthogonal to correctness/complexity.
+    - nlreturn
+    - wsl
+    - wsl_v5
+    # Flags idiomatic short names already in use (wt, vs, a, r) throughout
+    # internal/core and internal/cli.
+    - varnamelen
+    # Bans fmt.Print*/println by default — this is a CLI whose whole job is
+    # printing to stdout; the linter's premise doesn't fit the program.
+    - forbidigo
+    # Forces t.Parallel() on every test, but internal/core/core_test.go uses
+    # t.Setenv (GIT_CONFIG_GLOBAL/SYSTEM sandboxing) which Go's testing
+    # package refuses to combine with t.Parallel().
+    - paralleltest
+    # Demands black-box `_test` packages; internal/core/core_test.go
+    # deliberately does white-box testing of unexported helpers
+    # (parseWorktreeList, sortWorktrees, SanitizeBranchName, ...).
+    - testpackage
+    # Objects to `if err := f(); err != nil { return err }`, which is the
+    # standard idiomatic Go error-check shape (Effective Go, the Go wiki)
+    # and this codebase's dominant style throughout internal/cli and
+    # internal/core. Enforcing the two-line form here would be a large,
+    # purely stylistic rewrite against the grain of idiomatic Go.
+    - noinlineerr
+
+  settings:
+    cyclop:
+      max-complexity: 12
+    gocyclo:
+      min-complexity: 12
+    gocognit:
+      min-complexity: 20
+    funlen:
+      lines: 80
+      statements: 40
+    nestif:
+      min-complexity: 4
+    tagliatelle:
+      case:
+        rules:
+          json: camel
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - dupl
+          - gosec
+          - err113
+          # Sequential assertions in integration-style tests (e.g.
+          # internal/core/core_test.go's TestWorktreeLifecycle) rack up
+          # branches without indicating real complexity/maintainability
+          # risk the way they would in production logic.
+          - gocyclo
+          - gocognit
+          - cyclop
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

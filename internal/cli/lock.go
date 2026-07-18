@@ -10,6 +10,14 @@ import (
 
 var lockReason string
 
+var (
+	errAlreadyLocked  = errors.New("is already locked")
+	errNotLocked      = errors.New("is not locked")
+	errNoneLocked     = errors.New("no worktrees are locked")
+	errNoCandidates   = errors.New("no worktrees to choose from (the main checkout is not eligible)")
+	errTargetRequired = errors.New("worktree name required when not running interactively")
+)
+
 var lockCmd = &cobra.Command{
 	Use:   "lock [worktree]",
 	Short: "Lock a worktree to protect it from removal and pruning",
@@ -34,24 +42,25 @@ func init() {
 	lockCmd.Flags().StringVar(&lockReason, "reason", "", "why the worktree is locked")
 }
 
-func runLock(cmd *cobra.Command, args []string) error {
+func runLock(_ *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
 	target, err := pickTarget(repo, linkedWorktrees(wts), args, "Lock which worktree?")
 	if err != nil {
 		return err
 	}
 	if target.Locked {
-		return fmt.Errorf("%q is already locked%s", repo.WorktreeName(target), reasonSuffix(target.LockReason))
+		return fmt.Errorf("%q %w%s", repo.WorktreeName(target), errAlreadyLocked, reasonSuffix(target.LockReason))
 	}
-	if err := repo.LockWorktree(target.Path, lockReason); err != nil {
-		return err
+	err = repo.LockWorktree(target.Path, lockReason)
+	if err != nil {
+		return fmt.Errorf("locking worktree: %w", err)
 	}
 	name := repo.WorktreeName(target)
 	if lockReason != "" {
@@ -62,28 +71,28 @@ func runLock(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runUnlock(cmd *cobra.Command, args []string) error {
+func runUnlock(_ *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
 	locked := lockedWorktrees(wts)
 	if len(locked) == 0 {
-		return errors.New("no worktrees are locked")
+		return errNoneLocked
 	}
 	target, err := pickTarget(repo, locked, args, "Unlock which worktree?")
 	if err != nil {
 		return err
 	}
 	if !target.Locked {
-		return fmt.Errorf("%q is not locked", repo.WorktreeName(target))
+		return fmt.Errorf("%q %w", repo.WorktreeName(target), errNotLocked)
 	}
 	if err := repo.UnlockWorktree(target.Path); err != nil {
-		return err
+		return fmt.Errorf("unlocking worktree: %w", err)
 	}
 	fmt.Printf("Unlocked worktree %q.\n", repo.WorktreeName(target))
 	return nil
@@ -93,13 +102,13 @@ func runUnlock(cmd *cobra.Command, args []string) error {
 // prompts interactively among candidates.
 func pickTarget(repo *core.Repo, candidates []core.Worktree, args []string, title string) (core.Worktree, error) {
 	if len(candidates) == 0 {
-		return core.Worktree{}, errors.New("no worktrees to choose from (the main checkout is not eligible)")
+		return core.Worktree{}, errNoCandidates
 	}
 	if len(args) > 0 {
 		return resolveWorktree(repo, candidates, args[0])
 	}
 	if !interactive() {
-		return core.Worktree{}, errors.New("worktree name required when not running interactively")
+		return core.Worktree{}, errTargetRequired
 	}
 	return pickWorktree(repo, candidates, title)
 }

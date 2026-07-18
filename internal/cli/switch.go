@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var errDirGone = errors.New("no longer exists")
+
 var switchCmd = &cobra.Command{
 	Use:     "switch [worktree]",
 	Aliases: []string{"cd"},
@@ -21,14 +23,14 @@ yourself: cd "$(wt switch my-branch)".`,
 	RunE: runSwitch,
 }
 
-func runSwitch(cmd *cobra.Command, args []string) error {
+func runSwitch(_ *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
 
 	var target core.Worktree
@@ -36,7 +38,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		target, err = resolveWorktree(repo, wts, args[0])
 	} else {
 		if !interactive() {
-			return errors.New("worktree name required when not running interactively: wt switch <worktree>")
+			return fmt.Errorf("%w: wt switch <worktree>", errTargetRequired)
 		}
 		target, err = pickWorktree(repo, wts, "Switch to which worktree?")
 	}
@@ -44,7 +46,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if target.Prunable {
-		return fmt.Errorf("the directory of %q no longer exists (run `wt doctor`)", repo.WorktreeName(target))
+		return fmt.Errorf("the directory of %q %w (run `wt doctor`)", repo.WorktreeName(target), errDirGone)
 	}
 	// The path is the only stdout output; the shell wrapper depends on this.
 	fmt.Println(target.Path)

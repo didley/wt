@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const mainBranch = "main"
+
 // newTestRepo creates a real git repo named my-app in a temp dir with one
 // commit on main, isolated from the developer's global git config.
 func newTestRepo(t *testing.T) *Repo {
@@ -18,7 +20,7 @@ func newTestRepo(t *testing.T) *Repo {
 	if err := os.MkdirAll(main, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	mustGit(t, main, "init", "-b", "main")
+	mustGit(t, main, "init", "-b", mainBranch)
 	mustGit(t, main, "config", "user.email", "wt@test.invalid")
 	mustGit(t, main, "config", "user.name", "wt test")
 	writeFile(t, filepath.Join(main, "README.md"), "hello\n")
@@ -74,7 +76,7 @@ func TestDiscover(t *testing.T) {
 	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddWorktree(wtPath, "feature/x", "main", true); err != nil {
+	if err := repo.AddWorktree(wtPath, "feature/x", mainBranch, true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 	fromLinked, err := Discover(wtPath)
@@ -106,7 +108,7 @@ func TestWorktreeLifecycle(t *testing.T) {
 	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddWorktree(path, "feature/x", "main", true); err != nil {
+	if err := repo.AddWorktree(path, "feature/x", mainBranch, true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 
@@ -117,7 +119,7 @@ func TestWorktreeLifecycle(t *testing.T) {
 	if len(wts) != 2 {
 		t.Fatalf("Worktrees() = %d entries, want 2", len(wts))
 	}
-	if !wts[0].IsMain || wts[0].Branch != "main" {
+	if !wts[0].IsMain || wts[0].Branch != mainBranch {
 		t.Errorf("main entry wrong: %+v", wts[0])
 	}
 	linked := wts[1]
@@ -168,7 +170,7 @@ func TestLockUnlockWorktree(t *testing.T) {
 	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddWorktree(path, "feature/lock", "main", true); err != nil {
+	if err := repo.AddWorktree(path, "feature/lock", mainBranch, true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 
@@ -193,7 +195,7 @@ func TestLockUnlockWorktree(t *testing.T) {
 	}
 
 	path2 := repo.ConventionalPath("feature-unlock")
-	if err := repo.AddWorktree(path2, "feature/unlock", "main", true); err != nil {
+	if err := repo.AddWorktree(path2, "feature/unlock", mainBranch, true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 	if err := repo.LockWorktree(path2, ""); err != nil {
@@ -227,7 +229,7 @@ func TestWorktreesOrdering(t *testing.T) {
 	// rest in their original order (alpha, charlie).
 	for _, name := range []string{"alpha", "bravo", "charlie"} {
 		path := repo.ConventionalPath(name)
-		if err := repo.AddWorktree(path, "feature/"+name, "main", true); err != nil {
+		if err := repo.AddWorktree(path, "feature/"+name, mainBranch, true); err != nil {
 			t.Fatalf("AddWorktree(%s): %v", name, err)
 		}
 	}
@@ -239,7 +241,7 @@ func TestWorktreesOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var gotNames []string
+	gotNames := make([]string, 0, len(wts))
 	for _, w := range wts {
 		gotNames = append(gotNames, repo.WorktreeName(w))
 	}
@@ -261,7 +263,7 @@ func TestRemoveWorktreeMissingAdminFiles(t *testing.T) {
 	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddWorktree(path, "feature/y", "main", true); err != nil {
+	if err := repo.AddWorktree(path, "feature/y", mainBranch, true); err != nil {
 		t.Fatalf("AddWorktree: %v", err)
 	}
 
@@ -348,7 +350,7 @@ func TestParseWorktreeList(t *testing.T) {
 	if len(wts) != 4 {
 		t.Fatalf("parsed %d worktrees, want 4", len(wts))
 	}
-	if !wts[0].IsMain || wts[0].Branch != "main" {
+	if !wts[0].IsMain || wts[0].Branch != mainBranch {
 		t.Errorf("main: %+v", wts[0])
 	}
 	if wts[1].Branch != "feature/x" || wts[1].IsMain {
@@ -393,7 +395,7 @@ func TestParseStatusV2(t *testing.T) {
 func TestSanitizeBranchName(t *testing.T) {
 	cases := map[string]string{
 		"feature/login":     "feature-login",
-		"main":              "main",
+		mainBranch:          mainBranch,
 		"a/b/c":             "a-b-c",
 		"/leading/trailing": "leading-trailing",
 	}
@@ -415,25 +417,25 @@ func TestSummarizeChangesClean(t *testing.T) {
 // container, symlink here) still lives inside the .worktrees dir.
 func TestHasAncestorAlias(t *testing.T) {
 	base := t.TempDir()
-	real := filepath.Join(base, "app.worktrees")
-	if err := os.MkdirAll(filepath.Join(real, "fix-login"), 0o755); err != nil {
+	realDir := filepath.Join(base, "app.worktrees")
+	if err := os.MkdirAll(filepath.Join(realDir, "fix-login"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	alias := filepath.Join(base, "alias")
-	if err := os.Symlink(real, alias); err != nil {
+	if err := os.Symlink(realDir, alias); err != nil {
 		t.Fatal(err)
 	}
-	dirInfo, err := os.Stat(real)
+	dirInfo, err := os.Stat(realDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !hasAncestor(filepath.Join(alias, "fix-login"), dirInfo) {
-		t.Errorf("hasAncestor(%q via alias) = false, want true", real)
+		t.Errorf("hasAncestor(%q via alias) = false, want true", realDir)
 	}
 	if hasAncestor(filepath.Join(base, "elsewhere", "fix-login"), dirInfo) {
 		t.Error("hasAncestor(outside path) = true, want false")
 	}
-	if hasAncestor(real, dirInfo) {
+	if hasAncestor(realDir, dirInfo) {
 		t.Error("hasAncestor(the dir itself) = true, want false (not an ancestor)")
 	}
 }

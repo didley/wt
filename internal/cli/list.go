@@ -9,12 +9,19 @@ import (
 
 var listPorcelain bool
 
+// connectorWidth is the display width of the "├─ "/"└─ " tree connectors
+// prefixed to linked worktree names.
+const connectorWidth = 3
+
+// shortHeadLen is how many characters of a detached HEAD's SHA to show.
+const shortHeadLen = 7
+
 var listCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List worktrees in relation to the main checkout",
 	Args:    cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		return runList()
 	},
 }
@@ -49,8 +56,22 @@ func runList() error {
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
+
+	rows := buildListRows(repo, wts)
+
+	if listPorcelain {
+		printPorcelain(rows)
+		return nil
+	}
+	renderList(repo, rows)
+	return nil
+}
+
+// buildListRows resolves display state (name, branch label, dirty/stray
+// status) for every worktree.
+func buildListRows(repo *core.Repo, wts []core.Worktree) []listRow {
 	strayPaths := map[string]bool{}
 	for _, v := range repo.Violations(wts) {
 		strayPaths[v.Worktree.Path] = true
@@ -62,46 +83,48 @@ func runList() error {
 		if w.Detached {
 			row.branch = "detached @ " + shortHead(w.Head)
 		}
-		switch {
-		case w.Prunable:
-			row.state = "prunable — directory missing"
-			row.dirty = true
-		default:
-			changes, err := core.WorktreeStatus(w.Path)
-			if err != nil {
-				row.state = "status unavailable"
-			} else {
-				row.state = core.SummarizeChanges(changes)
-				row.dirty = len(changes) > 0
-			}
-		}
+		setRowState(&row, w)
 		rows = append(rows, row)
 	}
-
-	if listPorcelain {
-		for _, r := range rows {
-			kind := "linked"
-			if r.wt.IsMain {
-				kind = "main"
-			} else if r.stray {
-				kind = "stray"
-			}
-			locked := "unlocked"
-			if r.wt.Locked {
-				locked = "locked:" + r.wt.LockReason
-			}
-			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, r.branch, kind, r.state, locked)
-		}
-		return nil
-	}
-
-	renderList(repo, rows)
-	return nil
+	return rows
 }
 
-func renderList(repo *core.Repo, rows []listRow) {
-	var linked, stray []listRow
+func setRowState(row *listRow, w core.Worktree) {
+	if w.Prunable {
+		row.state = "prunable — directory missing"
+		row.dirty = true
+		return
+	}
+	changes, err := core.WorktreeStatus(w.Path)
+	if err != nil {
+		row.state = "status unavailable"
+		return
+	}
+	row.state = core.SummarizeChanges(changes)
+	row.dirty = len(changes) > 0
+}
+
+func printPorcelain(rows []listRow) {
+	for _, r := range rows {
+		kind := "linked"
+		if r.wt.IsMain {
+			kind = "main"
+		} else if r.stray {
+			kind = "stray"
+		}
+		locked := "unlocked"
+		if r.wt.Locked {
+			locked = "locked:" + r.wt.LockReason
+		}
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, r.branch, kind, r.state, locked)
+	}
+}
+
+// groupListRows splits rows into the main worktree, linked worktrees, and
+// stray (out-of-convention) worktrees.
+func groupListRows(rows []listRow) (listRow, []listRow, []listRow) {
 	var main listRow
+	var linked, stray []listRow
 	for _, r := range rows {
 		switch {
 		case r.wt.IsMain:
@@ -112,19 +135,30 @@ func renderList(repo *core.Repo, rows []listRow) {
 			linked = append(linked, r)
 		}
 	}
+	return main, linked, stray
+}
 
-	width := len(main.name)
+// columnWidths returns the name and branch column widths needed to align
+// every row, accounting for the tree connector prefix on linked names.
+func columnWidths(main listRow, linked, stray []listRow) (int, int) {
+	nameWidth := len(main.name)
 	for _, r := range linked {
-		if w := len(r.name) + 3; w > width { // +3 for the "├─ " connector
-			width = w
+		if w := len(r.name) + connectorWidth; w > nameWidth {
+			nameWidth = w
 		}
 	}
-	bwidth := len(main.branch)
+	branchWidth := len(main.branch)
 	for _, r := range append(linked, stray...) {
-		if len(r.branch) > bwidth {
-			bwidth = len(r.branch)
+		if len(r.branch) > branchWidth {
+			branchWidth = len(r.branch)
 		}
 	}
+	return nameWidth, branchWidth
+}
+
+func renderList(repo *core.Repo, rows []listRow) {
+	main, linked, stray := groupListRows(rows)
+	width, bwidth := columnWidths(main, linked, stray)
 
 	line := func(paddedName, branch, state string, dirty bool, locked string) {
 		st := stGood.Render(state)
@@ -151,7 +185,8 @@ func renderList(repo *core.Repo, rows []listRow) {
 		fmt.Println(stDim.Render("no worktrees yet — create one with `wt add`"))
 	}
 	for _, r := range stray {
-		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt organize`)"), bwidth, r.branch, r.state+r.lockSuffix())
+		label := stWarn.Render("! " + r.wt.Path + "  (outside .worktrees — run `wt organize`)")
+		fmt.Printf("%s  %-*s  %s\n", label, bwidth, r.branch, r.state+r.lockSuffix())
 	}
 }
 
@@ -166,8 +201,8 @@ func colorPad(visible string, width int) string {
 }
 
 func shortHead(head string) string {
-	if len(head) > 7 {
-		return head[:7]
+	if len(head) > shortHeadLen {
+		return head[:shortHeadLen]
 	}
 	return head
 }

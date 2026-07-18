@@ -1,3 +1,5 @@
+// Package cli implements wt's command-line interface: the cobra command
+// tree, prompts, and terminal rendering built on top of internal/core.
 package cli
 
 import (
@@ -26,21 +28,26 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 	Args:          cobra.NoArgs,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		conventionCheck(cmd)
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		return runList()
 	},
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&yes, "yes", "y", false, "assume yes: skip confirmations and never prompt for missing input")
-	rootCmd.CompletionOptions.DisableDefaultCmd = true // completions are generated via `wt shell-init`
+	rootCmd.PersistentFlags().BoolVarP(&yes, "yes", "y", false, "assume yes: skip confirmations, never prompt")
+	rootCmd.CompletionOptions.DisableDefaultCmd = true   // completions are generated via `wt shell-init`
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true}) // -h/--help covers this; no standalone `help` command
-	rootCmd.AddCommand(addCmd, listCmd, removeCmd, renameCmd, switchCmd, lockCmd, unlockCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
+	rootCmd.AddCommand(
+		addCmd, listCmd, removeCmd, renameCmd, switchCmd,
+		lockCmd, unlockCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd,
+	)
 }
 
+// Execute runs the wt root command, printing any error and exiting non-zero
+// on failure.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		if errors.Is(err, errAborted) {

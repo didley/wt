@@ -5,13 +5,13 @@ import "testing"
 func TestRunLockAndUnlock(t *testing.T) {
 	withYes(t)
 	repo := newTestRepo(t)
-	if err := runAdd(addCmd, []string{"feature/lock"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchLockSlash}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
 	lockReason = "keep me around"
 	t.Cleanup(func() { lockReason = "" })
 
-	if err := runLock(lockCmd, []string{"feature-lock"}); err != nil {
+	if err := runLock(lockCmd, []string{testBranchLock}); err != nil {
 		t.Fatalf("runLock: %v", err)
 	}
 	wts, err := repo.Worktrees()
@@ -20,7 +20,7 @@ func TestRunLockAndUnlock(t *testing.T) {
 	}
 	var found bool
 	for _, w := range wts {
-		if w.Branch == "feature/lock" {
+		if w.Branch == testBranchLockSlash {
 			found = true
 			if !w.Locked || w.LockReason != "keep me around" {
 				t.Errorf("worktree not locked as expected: %+v", w)
@@ -32,11 +32,11 @@ func TestRunLockAndUnlock(t *testing.T) {
 	}
 
 	// Locking again should fail.
-	if err := runLock(lockCmd, []string{"feature-lock"}); err == nil {
+	if err := runLock(lockCmd, []string{testBranchLock}); err == nil {
 		t.Error("runLock on already-locked worktree: want error, got nil")
 	}
 
-	if err := runUnlock(unlockCmd, []string{"feature-lock"}); err != nil {
+	if err := runUnlock(unlockCmd, []string{testBranchLock}); err != nil {
 		t.Fatalf("runUnlock: %v", err)
 	}
 	wts, err = repo.Worktrees()
@@ -44,12 +44,12 @@ func TestRunLockAndUnlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range wts {
-		if w.Branch == "feature/lock" && w.Locked {
+		if w.Branch == testBranchLockSlash && w.Locked {
 			t.Errorf("worktree still locked after unlock: %+v", w)
 		}
 	}
 
-	if err := runUnlock(unlockCmd, []string{"feature-lock"}); err == nil {
+	if err := runUnlock(unlockCmd, []string{testBranchLock}); err == nil {
 		t.Error("runUnlock when nothing is locked: want error, got nil")
 	}
 }
@@ -60,7 +60,7 @@ func TestRunLockUnknownTarget(t *testing.T) {
 	if err := runAdd(addCmd, []string{"feature/lk"}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
-	if err := runLock(lockCmd, []string{"nope"}); err == nil {
+	if err := runLock(lockCmd, []string{testNameNope}); err == nil {
 		t.Fatal("runLock on unknown target: want error, got nil")
 	}
 }

@@ -13,6 +13,14 @@ import (
 
 var addFrom string
 
+var (
+	errBranchRequired   = errors.New("branch name required when not running interactively")
+	errBranchCheckedOut = errors.New("is already checked out in")
+	errBranchNameEmpty  = errors.New("branch name is required")
+	errBranchWhitespace = errors.New("branch names cannot contain whitespace")
+	errBranchExists     = errors.New("already exists")
+)
+
 var addCmd = &cobra.Command{
 	Use:   "add [branch]",
 	Short: "Create a worktree under <repo>.worktrees/",
@@ -26,46 +34,26 @@ otherwise the branch is created (from --from, or the repo's default branch).`,
 }
 
 func init() {
-	addCmd.Flags().StringVar(&addFrom, "from", "", "base ref when creating a new branch (default: the repo's default branch)")
+	addCmd.Flags().StringVar(&addFrom, "from", "", "base ref for a new branch (default: the repo's default branch)")
 }
 
-func runAdd(cmd *cobra.Command, args []string) error {
+func runAdd(_ *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
+		return fmt.Errorf("listing worktrees: %w", err)
+	}
+
+	branch, isNew, base, err := pickBranch(repo, wts, args)
+	if err != nil {
 		return err
 	}
-
-	var branch string
-	var isNew bool
-	base := addFrom
-	if len(args) == 1 {
-		branch = args[0]
-		isNew = !repo.BranchExists(branch)
-		if isNew && base == "" {
-			base = repo.DefaultBranch()
-		}
-	} else {
-		if !interactive() {
-			return errors.New("branch name required when not running interactively: wt add <branch>")
-		}
-		branch, isNew, base, err = promptForBranch(repo, wts)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, w := range wts {
-		if w.Branch == branch {
-			where := "the main checkout"
-			if !w.IsMain {
-				where = w.Path
-			}
-			return fmt.Errorf("branch %q is already checked out in %s", branch, where)
-		}
+	err = checkNotCheckedOut(wts, branch)
+	if err != nil {
+		return err
 	}
 	if !isNew && addFrom != "" {
 		warnf("--from is ignored: branch %q already exists", branch)
@@ -73,13 +61,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	name := core.SanitizeBranchName(branch)
 	path := repo.ConventionalPath(name)
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("directory already exists: %s", path)
-	}
-	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
-		return err
-	}
-	if err := repo.AddWorktree(path, branch, base, isNew); err != nil {
+	err = createWorktree(repo, path, branch, base, isNew)
+	if err != nil {
 		return err
 	}
 
@@ -93,9 +76,59 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// pickBranch resolves the branch/base ref to create a worktree for, either
+// from args or, with none given, an interactive prompt.
+func pickBranch(repo *core.Repo, wts []core.Worktree, args []string) (string, bool, string, error) {
+	if len(args) == 1 {
+		branch := args[0]
+		isNew := !repo.BranchExists(branch)
+		base := addFrom
+		if isNew && base == "" {
+			base = repo.DefaultBranch()
+		}
+		return branch, isNew, base, nil
+	}
+	if !interactive() {
+		return "", false, "", errBranchRequired
+	}
+	return promptForBranch(repo, wts)
+}
+
+// checkNotCheckedOut fails if branch is already checked out in another worktree.
+func checkNotCheckedOut(wts []core.Worktree, branch string) error {
+	for _, w := range wts {
+		if w.Branch == branch {
+			where := "the main checkout"
+			if !w.IsMain {
+				where = w.Path
+			}
+			return fmt.Errorf("branch %q %w %s", branch, errBranchCheckedOut, where)
+		}
+	}
+	return nil
+}
+
+// createWorktree creates the worktrees directory (if needed) and adds the
+// new worktree, failing if path is already occupied.
+func createWorktree(repo *core.Repo, path, branch, base string, isNew bool) error {
+	_, statErr := os.Stat(path)
+	if statErr == nil {
+		return fmt.Errorf("%w: %s", errDirExists, path)
+	}
+	err := os.MkdirAll(repo.WorktreesDir(), dirPerm)
+	if err != nil {
+		return fmt.Errorf("creating worktrees directory: %w", err)
+	}
+	err = repo.AddWorktree(path, branch, base, isNew)
+	if err != nil {
+		return fmt.Errorf("adding worktree: %w", err)
+	}
+	return nil
+}
+
 // promptForBranch interactively picks a new branch (name + base ref) or an
 // existing branch that isn't checked out anywhere yet.
-func promptForBranch(repo *core.Repo, wts []core.Worktree) (branch string, isNew bool, base string, err error) {
+func promptForBranch(repo *core.Repo, wts []core.Worktree) (string, bool, string, error) {
 	checkedOut := map[string]bool{}
 	for _, w := range wts {
 		checkedOut[w.Branch] = true
@@ -108,10 +141,10 @@ func promptForBranch(repo *core.Repo, wts []core.Worktree) (branch string, isNew
 		}
 	}
 
-	isNew = true
+	isNew := true
 	if len(available) > 0 {
 		var mode string
-		err = runPrompt(huh.NewSelect[string]().
+		err := runPrompt(huh.NewSelect[string]().
 			Title("Create a worktree for…").
 			Options(
 				huh.NewOption("a new branch", "new"),
@@ -130,27 +163,28 @@ func promptForBranch(repo *core.Repo, wts []core.Worktree) (branch string, isNew
 			opts[i] = huh.NewOption(b, b)
 		}
 		var picked string
-		err = runPrompt(huh.NewSelect[string]().Title("Branch").Options(opts...).Value(&picked))
+		err := runPrompt(huh.NewSelect[string]().Title("Branch").Options(opts...).Value(&picked))
 		return picked, false, "", err
 	}
 
-	base = addFrom
+	base := addFrom
 	if base == "" {
 		base = repo.DefaultBranch()
 	}
-	err = runPrompt(
+	var branch string
+	err := runPrompt(
 		huh.NewInput().
 			Title("New branch name").
 			Validate(func(s string) error {
 				s = strings.TrimSpace(s)
 				if s == "" {
-					return errors.New("branch name is required")
+					return errBranchNameEmpty
 				}
 				if strings.ContainsAny(s, " \t") {
-					return errors.New("branch names cannot contain whitespace")
+					return errBranchWhitespace
 				}
 				if repo.BranchExists(s) {
-					return fmt.Errorf("branch %q already exists", s)
+					return fmt.Errorf("branch %q %w", s, errBranchExists)
 				}
 				return nil
 			}).
