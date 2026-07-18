@@ -46,10 +46,13 @@ var (
 	stGood = lipgloss.NewStyle().Foreground(huhGreen).Bold(true)
 	stWarn = lipgloss.NewStyle().Foreground(huhRed)
 	stBold = lipgloss.NewStyle().Foreground(huhIndigo).Bold(true)
-	// stGrayBold is bold but otherwise neutral (grey, ANSI 8) — used for a
-	// locked worktree's name: worth calling attention to, but not colored
-	// like stray (out-of-convention) or the main checkout's own bold indigo.
-	stGrayBold = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("8"))
+	// stGrayBold is bold + faint (the same dim rendering stDim uses) rather
+	// than an explicit indexed color — ANSI-16 "bright black" (color 8)
+	// varies wildly by terminal theme, in some themes rendering almost
+	// white instead of gray. Used for a locked worktree's name: worth
+	// calling attention to, but not colored like stray (out-of-convention)
+	// or the main checkout's own bold indigo.
+	stGrayBold = lipgloss.NewStyle().Bold(true).Faint(true)
 )
 
 func warnf(format string, a ...any) {
