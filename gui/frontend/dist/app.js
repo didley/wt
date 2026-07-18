@@ -226,7 +226,7 @@ function card(wt, expand) {
   }
 
   const name = document.createElement("span");
-  name.className = "wt-name user-selectable";
+  name.className = "user-selectable wt-name";
   name.textContent = wt.name;
   row.appendChild(name);
 
@@ -239,7 +239,7 @@ function card(wt, expand) {
   }
 
   const branch = document.createElement("span");
-  branch.className = "branch-chip mono user-selectable";
+  branch.className = "user-selectable branch-chip mono";
   branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
   row.appendChild(branch);
 
@@ -296,7 +296,7 @@ function changeList(changes) {
     kind.className = "kind";
     kind.textContent = c.kind;
     const p = document.createElement("span");
-    p.className = "mono user-selectable";
+    p.className = "user-selectable mono";
     p.textContent = c.path;
     li.append(kind, p);
     ul.appendChild(li);
@@ -438,10 +438,10 @@ function openRemoveBulkDialog() {
   for (const wt of targets) {
     const li = document.createElement("li");
     const name = document.createElement("span");
-    name.className = "mono user-selectable";
+    name.className = "user-selectable mono";
     name.textContent = wt.name;
     const branch = document.createElement("span");
-    branch.className = "kind user-selectable";
+    branch.className = "user-selectable kind";
     branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
     li.append(name, branch);
     list.appendChild(li);
@@ -466,7 +466,7 @@ function openRemoveBulkDialog() {
     wrap.replaceChildren();
     for (const wt of dirtyTargets) {
       const name = document.createElement("p");
-      name.className = "mono small user-selectable";
+      name.className = "user-selectable mono small";
       name.textContent = wt.name;
       wrap.append(name, changeList(wt.changes));
     }
@@ -535,7 +535,7 @@ function openAboutDialog() {
 
 function toast(message, isError) {
   const el = document.createElement("div");
-  el.className = "toast user-selectable" + (isError ? " error" : "");
+  el.className = "user-selectable toast" + (isError ? " error" : "");
   el.textContent = message.replace(/^Error: /, "");
   $("toasts").appendChild(el);
   setTimeout(() => el.remove(), isError ? 9000 : 5000);
