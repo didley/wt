@@ -80,11 +80,13 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 }
 .icon-btn:hover { color: var(--fg); border-color: var(--fg); }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* The gear glyph isn't a letter — the "i" button's italic lean and small
-   font-size stretch it out of shape, so give it its own upright sizing. */
-.icon-btn.gear { font-style: normal; font-size: 0.95em; }
 #recents { flex: 1; overflow-y: auto; padding: 4px 8px; }
-.sidebar-foot { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.sidebar-foot { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+/* Labeled, not icon-only, so its purpose is legible without a hover
+   tooltip — unlike the "i" info button, "Settings" isn't a universally
+   recognized glyph on its own. */
+.settings-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.settings-btn .gear { font-style: normal; }
 .recent {
   display: flex; align-items: center; gap: 6px;
   width: 100%; padding: 8px 10px; margin: 2px 0;
