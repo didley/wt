@@ -235,7 +235,7 @@ function card(wt, expand) {
   if (wt.locked) {
     row.appendChild(
       wt.lockReason
-        ? badgeButton("locked ⓘ", "locked has-reason", wt.lockReason, () => toast(wt.lockReason, false))
+        ? badgeButton("locked", "locked has-reason", wt.lockReason, () => toast(`Reason: ${wt.lockReason}`, false))
         : badge("locked", "locked")
     );
   }
@@ -320,10 +320,20 @@ function badgeButton(text, cls, title, onClick) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "badge " + cls;
-  b.textContent = text;
+  b.append(text, infoDot());
   b.title = title;
   b.addEventListener("click", onClick);
   return b;
+}
+
+// A small circular "i" marker — drawn in CSS rather than using a Unicode
+// circled-letter glyph, which doesn't render as a true circle in every font.
+function infoDot() {
+  const dot = document.createElement("span");
+  dot.className = "info-dot";
+  dot.textContent = "i";
+  dot.setAttribute("aria-hidden", "true");
+  return dot;
 }
 
 function btn(label, onClick) {
