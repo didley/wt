@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
@@ -146,6 +147,22 @@ func setRowState(row *listRow, w core.Worktree) {
 		row.state = "prunable — directory missing"
 		row.dirty = true
 		return
+	}
+	// git suppresses its own "prunable" annotation for locked worktrees
+	// even when the directory is physically gone (locking is what exempts
+	// them from pruning in the first place — `wt`/`git worktree` prune
+	// won't touch this until it's unlocked, so it genuinely isn't
+	// "prunable" yet), so w.Prunable never catches this case — check
+	// directly instead of letting it fall through to the generic "status
+	// unavailable" below. Same "<reason> — directory missing" phrasing as
+	// the prunable case above, and the same dirty styling, since it's the
+	// same underlying situation.
+	if w.Locked {
+		if _, err := os.Stat(w.Path); errors.Is(err, os.ErrNotExist) {
+			row.state = "locked — directory missing"
+			row.dirty = true
+			return
+		}
 	}
 	changes, err := core.WorktreeStatus(w.Path)
 	if err != nil {

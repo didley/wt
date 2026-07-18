@@ -121,14 +121,30 @@ func TestSetRowStatePrunable(t *testing.T) {
 	}
 }
 
-func TestSetRowStateStatusUnavailable(t *testing.T) {
+func TestSetRowStateLockedDirectoryMissing(t *testing.T) {
 	var row listRow
-	setRowState(&row, core.Worktree{Path: testMissingPath})
+	setRowState(&row, core.Worktree{Path: testMissingPath, Locked: true})
+	if !row.dirty {
+		t.Error("setRowState on a locked worktree with a missing directory: want dirty = true")
+	}
+	if row.state != "locked — directory missing" {
+		t.Errorf("setRowState on a locked worktree with a missing directory: state = %q, want %q",
+			row.state, "locked — directory missing")
+	}
+}
+
+func TestSetRowStateStatusUnavailable(t *testing.T) {
+	// An existing directory that isn't a git worktree: os.Stat succeeds so
+	// the locked/missing-directory branch doesn't apply, but `git status`
+	// still fails.
+	dir := t.TempDir()
+	var row listRow
+	setRowState(&row, core.Worktree{Path: dir})
 	if row.state != "status unavailable" {
-		t.Errorf("setRowState on a missing path: state = %q, want %q", row.state, "status unavailable")
+		t.Errorf("setRowState on a non-worktree directory: state = %q, want %q", row.state, "status unavailable")
 	}
 	if row.dirty {
-		t.Error("setRowState on a missing path: want dirty = false")
+		t.Error("setRowState on a non-worktree directory: want dirty = false")
 	}
 }
 
