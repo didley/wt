@@ -51,6 +51,25 @@ func TestRunRenameWithBranch(t *testing.T) {
 	}
 }
 
+func TestRunRenameNoArgsNoCandidates(t *testing.T) {
+	withYes(t)
+	newTestRepo(t)
+	if err := runRename(renameCmd, nil); err == nil {
+		t.Fatal("runRename with no args and no linked worktrees: want error, got nil")
+	}
+}
+
+func TestRunRenameNoArgsNonInteractive(t *testing.T) {
+	withYes(t)
+	newTestRepo(t)
+	if err := runAdd(addCmd, []string{"feature/only"}); err != nil {
+		t.Fatalf("runAdd: %v", err)
+	}
+	if err := runRename(renameCmd, nil); err == nil {
+		t.Fatal("runRename with no args, non-interactive: want error, got nil")
+	}
+}
+
 func TestRunRenameUnknownTarget(t *testing.T) {
 	withYes(t)
 	newTestRepo(t)

@@ -63,6 +63,11 @@ func menuCommands() []*cobra.Command {
 // args) has printed the worktree list, then runs the chosen command. Labels
 // are derived from each command's own name and -h description (Short) so
 // there's a single source of truth for both.
+//
+// It loops: once a command finishes, the menu comes back around rather than
+// exiting, so you're never dropped out of the session after one action —
+// picking a command and then returning to "what next?" plays the role a
+// "back" option would.
 func runMenu() error {
 	const exitIdx = -1
 	const verboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
@@ -75,25 +80,37 @@ func runMenu() error {
 	opts = append(opts, huh.NewOption("list --verbose — "+verboseHelp, verboseListIdx))
 	opts = append(opts, huh.NewOption("Exit", exitIdx))
 
-	idx := exitIdx
-	err := runPrompt(huh.NewSelect[int]().Title("Run a command").Options(opts...).Value(&idx))
-	if err != nil {
-		if errors.Is(err, errAborted) {
-			return nil
+	for {
+		idx := exitIdx
+		err := runPrompt(huh.NewSelect[int]().Title("Run a command").Options(opts...).Value(&idx))
+		if err != nil {
+			if errors.Is(err, errAborted) {
+				return nil
+			}
+			return err
 		}
-		return err
+
+		switch idx {
+		case exitIdx:
+			return nil
+		case verboseListIdx:
+			listVerbose = true
+			if err := runList(); err != nil {
+				return err
+			}
+			fmt.Println()
+			continue
+		}
+
+		cmd := cmds[idx]
+		if err := cmd.RunE(cmd, nil); err != nil {
+			// cmd.RunE is one of this package's own run* functions (e.g.
+			// runAdd); wrapping here would break errors.Is(err, errAborted)
+			// checks upstream.
+			return err //nolint:wrapcheck
+		}
+		fmt.Println()
 	}
-	switch idx {
-	case exitIdx:
-		return nil
-	case verboseListIdx:
-		listVerbose = true
-		return runList()
-	}
-	cmd := cmds[idx]
-	// cmd.RunE is one of this package's own run* functions (e.g. runAdd);
-	// wrapping here would break errors.Is(err, errAborted) checks upstream.
-	return cmd.RunE(cmd, nil) //nolint:wrapcheck
 }
 
 func confirm(title, description string, def bool) (bool, error) {

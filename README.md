@@ -108,15 +108,17 @@ when run in a terminal and scriptable with flags. Pass `-y`/`--yes`
 (available on every command) to skip confirmation prompts and fail instead
 of prompting for missing input — the flag to use in scripts and CI.
 
-### `wt add [branch]`
+### `wt add [branch...]`
 
-Create a worktree under `<repo>.worktrees/`.
+Create one or more worktrees under `<repo>.worktrees/`.
 
-- `wt add` — interactive: new branch (name + base ref) or an existing
-  branch that has no worktree yet.
+- `wt add` — interactive: a new branch (name + base ref), or one or more
+  existing branches that have no worktree yet.
 - `wt add fix-login` — non-interactive. If the branch exists it's checked
   out into the worktree; otherwise it's created from the repo's default
   branch (override with `--from <ref>`).
+- `wt add fix-login fix-signup` — creates a worktree for each; a failure on
+  one (e.g. an already-checked-out branch) doesn't stop the rest.
 
 Branch names containing `/` get flattened directory names:
 `feature/search` lives at `my-app.worktrees/feature-search`.
@@ -126,8 +128,9 @@ Branch names containing `/` get flattened directory names:
 Show all worktrees with their branch and dirty state as a `NAME  BRANCH
 STATE` table. Worktrees living outside `<repo>.worktrees/` are flagged with
 a trailing `*` and a `wt organize` hint. `--verbose`/`-v` adds full paths,
-directory names and commit hashes. `--porcelain` prints stable
-tab-separated output for scripts:
+directory names and commit hashes. `--porcelain` prints stable, versioned
+tab-separated output for scripts (bare `--porcelain` is shorthand for
+`--porcelain=v1`; only `v1` exists so far):
 `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]<TAB>head`.
 
 ### `wt switch [worktree]` (alias: `cd`)
