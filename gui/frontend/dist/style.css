@@ -154,12 +154,19 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 .card-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .card .wt-name { font-weight: 700; font-size: 1.05em; }
 .badge {
-  font-size: 0.72em; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  font: inherit; font-size: 0.72em; font-weight: 600; padding: 2px 8px; border-radius: 20px;
   background: var(--bg3); color: var(--muted); letter-spacing: 0.3px;
+  border: 0; margin: 0;
 }
 .badge.main { background: color-mix(in srgb, var(--accent) 22%, var(--bg3)); color: var(--accent); }
 .badge.stray { background: color-mix(in srgb, var(--warn) 22%, var(--bg3)); color: var(--warn); }
 .badge.locked { background: color-mix(in srgb, var(--warn) 22%, var(--bg3)); color: var(--warn); }
+/* Badges rendered as <button> (e.g. a lock badge with a reason) get an
+   obvious pressable affordance instead of relying on a hover-only tooltip. */
+button.badge.has-reason { cursor: pointer; }
+button.badge.has-reason:hover { background: color-mix(in srgb, var(--warn) 34%, var(--bg3)); }
+button.badge.has-reason:active { background: color-mix(in srgb, var(--warn) 44%, var(--bg3)); transform: translateY(1px); }
+button.badge.has-reason:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .branch-chip { color: var(--muted); font-size: 0.88em; }
 .state { margin-left: auto; font-size: 0.88em; }
 .state.clean { color: var(--good); }
