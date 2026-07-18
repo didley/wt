@@ -95,14 +95,15 @@ can't do that on its own), and adds tab completion for wt's commands and
 flags. Add one line to your shell rc:
 
 ```sh
-eval "$(wt shell-init bash)"          # ~/.bashrc
-eval "$(wt shell-init zsh)"           # ~/.zshrc
-wt shell-init fish | source           # ~/.config/fish/config.fish
+eval "$(wt setup bash)"          # ~/.bashrc
+eval "$(wt setup zsh)"           # ~/.zshrc
+wt setup fish | source           # ~/.config/fish/config.fish
 ```
 
 ## CLI usage
 
-Run `wt` with no arguments to list worktrees. All commands are interactive
+Run `wt` with no arguments to list worktrees, then (in a terminal) pick
+what to do next from an interactive menu. All commands are interactive
 when run in a terminal and scriptable with flags. Pass `-y`/`--yes`
 (available on every command) to skip confirmation prompts and fail instead
 of prompting for missing input — the flag to use in scripts and CI.
@@ -122,9 +123,12 @@ Branch names containing `/` get flattened directory names:
 
 ### `wt list` (alias: `ls`)
 
-Show all worktrees relative to the main checkout with their branch, dirty
-state, and lock state. `--porcelain` prints stable tab-separated output for
-scripts: `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]`.
+Show all worktrees with their branch and dirty state as a `NAME  BRANCH
+STATE` table. Worktrees living outside `<repo>.worktrees/` are flagged with
+a trailing `*` and a `wt organize` hint. `--verbose`/`-v` adds full paths,
+directory names and commit hashes. `--porcelain` prints stable
+tab-separated output for scripts:
+`path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]<TAB>head`.
 
 ### `wt switch [worktree]` (alias: `cd`)
 
@@ -167,7 +171,7 @@ commits. `--reason "<text>"` records why; it shows up in `wt list` and
 Rename the worktree directory. The branch keeps its name unless you pass
 `--branch`.
 
-### `wt doctor`
+### `wt organize`
 
 Health-check the convention:
 
@@ -179,7 +183,7 @@ The same check also runs automatically before every `wt` command, so
 worktrees created with raw `git worktree add` are caught the next time you
 use `wt` — no background watcher needed.
 
-### `wt shell-init <bash|zsh|fish>`
+### `wt setup <bash|zsh|fish>`
 
 Print the shell wrapper function and tab completions (see
 [Shell integration](#shell-integration-recommended)). Run it directly in a
