@@ -214,17 +214,18 @@ checkout.
 
 ## Development
 
-Tasks are run with [mage](https://magefile.org) — no install needed,
-`go run mage.go <target>` works everywhere:
+Tasks are run with [just](https://just.systems)
+(`dnf/apt/brew install just`):
 
 ```sh
-go run mage.go -l        # list all targets
-go run mage.go build     # CLI -> ./wt
-go run mage.go gui       # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
-                         # headers on Linux; on Fedora Atomic run inside a
-                         # distrobox, see gui/README.md)
-go run mage.go check     # tests (against real git repos in temp dirs) + vet
-go run mage.go flatpak   # build + install the Flatpak for the current user
+just --list      # list all recipes
+just build       # CLI -> ./wt
+just run-cli -h  # run the CLI via `go run`, forwarding any args
+just gui         # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
+                  # headers on Linux; on Fedora Atomic run inside a
+                  # distrobox, see gui/README.md)
+just check       # tests (against real git repos in temp dirs) + vet
+just flatpak     # build + install the Flatpak for the current user
 ```
 
 Releases: push a `v*` tag. CI runs the test suite (Ubuntu + macOS) and GUI

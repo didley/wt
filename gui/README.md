@@ -15,8 +15,8 @@ file is about building from source.
 
 ## Build
 
-`go run mage.go gui` (from the repo root) picks the right tags and flags
-for your OS. What it runs:
+`just gui` (from the repo root) picks the right tags and flags for your
+OS. What it runs:
 
 Linux (needs GTK3 + WebKitGTK 4.1 headers — on Fedora Atomic/Silverblue use
 a distrobox):
@@ -33,7 +33,7 @@ cd gui && CGO_LDFLAGS="-framework UniformTypeIdentifiers" \
   go build -tags desktop,production -o wt-gui .
 ```
 
-Flatpak (dev build, from the repo root — or `go run mage.go flatpak`):
+Flatpak (dev build, from the repo root — or `just flatpak`):
 
 ```sh
 flatpak-builder --force-clean --user --install \
