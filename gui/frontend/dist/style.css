@@ -187,6 +187,9 @@ dialog {
   border: 1px solid var(--border); border-radius: 14px;
   padding: 22px 24px; width: min(560px, 90vw);
 }
+/* Dialogs are focused programmatically on open (see openDialog in app.js)
+   so nothing appears pre-selected; that focus shouldn't draw a ring. */
+dialog:focus { outline: none; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
 dialog h2 { margin: 0 0 14px; font-size: 1.15em; }
 dialog label { display: block; margin: 12px 0; }

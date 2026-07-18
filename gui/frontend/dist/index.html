@@ -73,7 +73,7 @@
   </div>
 
   <!-- Create -->
-  <dialog id="dlg-create">
+  <dialog id="dlg-create" tabindex="-1">
     <form method="dialog">
       <h2>New worktree</h2>
       <label>Branch
@@ -93,7 +93,7 @@
   </dialog>
 
   <!-- Lock -->
-  <dialog id="dlg-lock">
+  <dialog id="dlg-lock" tabindex="-1">
     <form method="dialog">
       <h2>Lock worktree <span id="lock-name" class="mono"></span></h2>
       <p class="muted small">Locking protects it from <code>wt remove</code> and <code>wt prune</code> (and their git equivalents) until you unlock it. It never affects the branch or its commits.</p>
@@ -108,7 +108,7 @@
   </dialog>
 
   <!-- Remove -->
-  <dialog id="dlg-remove">
+  <dialog id="dlg-remove" tabindex="-1">
     <form method="dialog">
       <h2>Remove worktree <span id="remove-name" class="mono"></span>?</h2>
       <p id="remove-branch-note" class="notice"></p>
@@ -143,7 +143,7 @@
   </dialog>
 
   <!-- Remove (bulk) -->
-  <dialog id="dlg-remove-bulk">
+  <dialog id="dlg-remove-bulk" tabindex="-1">
     <form method="dialog">
       <h2>Remove <span id="remove-bulk-count"></span> worktrees?</h2>
       <ul id="remove-bulk-list" class="changes"></ul>
@@ -179,7 +179,7 @@
   </dialog>
 
   <!-- Rename -->
-  <dialog id="dlg-rename">
+  <dialog id="dlg-rename" tabindex="-1">
     <form method="dialog">
       <h2>Rename worktree <span id="rename-old" class="mono"></span></h2>
       <label>New name
@@ -195,7 +195,7 @@
   </dialog>
 
   <!-- About -->
-  <dialog id="dlg-about">
+  <dialog id="dlg-about" tabindex="-1">
     <form method="dialog">
       <h2>wt</h2>
       <p class="about-section-title">Version</p>
