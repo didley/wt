@@ -1,15 +1,14 @@
 # Flatpak manifest for the wt GUI.
 #
-# Local dev build (from the repo root; network for `go build` comes from
-# the build-args below):
+# Build (from the repo root, fully offline thanks to the vendored sources
+# below):
 #   flatpak-builder --force-clean --user --install \
 #     --install-deps-from=flathub build-dir packaging/flatpak/dev.didley.wt.yml
 #
-# Flathub submission notes:
-#   - Flathub builds are offline: generate vendored go module sources with
-#     https://github.com/flatpak/flatpak-builder-tools (flatpak-go-mod)
-#     and replace the `--share=network` dev shortcut below.
-#   - Screenshots must be added to the metainfo before submission.
+# generated-sources.yml/modules.txt were produced by running
+# https://github.com/dennwc/flatpak-go-mod against gui/ (the Wails module the
+# build actually compiles) and moving its go.mod.yml/modules.txt output here.
+# Regenerate them after bumping gui/go.mod or gui/go.sum.
 app-id: dev.didley.wt
 runtime: org.gnome.Platform
 # GNOME 50 is based on freedesktop 25.08, so sdk-extensions resolve to the
@@ -35,17 +34,24 @@ modules:
     buildsystem: simple
     build-options:
       append-path: /usr/lib/sdk/golang/bin
-      build-args:
-        - --share=network # dev only; Flathub requires vendored sources
     build-commands:
       # Version comes from the metainfo's latest <release>, the single
       # source of truth for the Linux packaging version (there's no git
       # tag to read at this point in the build).
+      # The github.com/didley/wt module (internal/core) is pulled in via a
+      # local `replace` in gui/go.mod, so flatpak-go-mod's proxy-fetched
+      # vendor tree (generated-sources.yml) can't cover it — it lists the
+      # module in modules.txt but has no URL to fetch it from. Copy it in
+      # from the repo checkout instead.
+      - mkdir -p gui/vendor/github.com/didley/wt &&
+        cp LICENSE gui/vendor/github.com/didley/wt/ &&
+        cp -r internal gui/vendor/github.com/didley/wt/internal
       - VERSION=$(grep -m1 -oP '(?<=<release version=")[^"]+' gui/build/linux/dev.didley.wt.metainfo.xml) &&
-        cd gui && go build -tags desktop,production,webkit2_41 -ldflags "-s -w -X main.version=$VERSION" -o /app/bin/wt-gui .
+        cd gui && go build -mod=vendor -tags desktop,production,webkit2_41 -ldflags "-s -w -X main.version=$VERSION" -o /app/bin/wt-gui .
       - install -Dm644 gui/build/linux/dev.didley.wt.desktop /app/share/applications/dev.didley.wt.desktop
       - install -Dm644 gui/build/linux/dev.didley.wt.metainfo.xml /app/share/metainfo/dev.didley.wt.metainfo.xml
       - install -Dm644 gui/build/linux/icons/dev.didley.wt.svg /app/share/icons/hicolor/scalable/apps/dev.didley.wt.svg
     sources:
       - type: dir
         path: ../..
+      - generated-sources.yml
