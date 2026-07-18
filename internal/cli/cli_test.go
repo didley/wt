@@ -15,6 +15,7 @@ const (
 	testBranchGone      = "feature/gone"
 	testBranchLock      = "feature-lock"
 	testBranchLockSlash = "feature/lock"
+	testBranchExisting  = "existing"
 	testNameNope        = "nope" // a name that never resolves to a worktree
 	testMissingPath     = "/does/not/exist"
 )

@@ -21,7 +21,7 @@ tmp dir getting cleared), git still tracks it until pruned. This runs
 ` + "`git worktree prune`" + ` to drop those stale entries. Branches are
 never affected.
 
-This is also offered as part of ` + "`wt doctor`" + `.`,
+This is also offered as part of ` + "`wt organize`" + `.`,
 	Args: cobra.NoArgs,
 	RunE: runPrune,
 }

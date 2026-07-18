@@ -23,7 +23,8 @@ var rootCmd = &cobra.Command{
 a sibling directory named <repo>.worktrees/ — and makes creating,
 listing, switching, renaming and removing worktrees painless.
 
-Run wt with no arguments to list the worktrees of the current repo.`,
+Run wt with no arguments to list the worktrees of the current repo, then
+(interactively) pick what to do next.`,
 	Version:       version,
 	Args:          cobra.NoArgs,
 	SilenceUsage:  true,
@@ -31,18 +32,31 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		conventionCheck(cmd)
 	},
-	RunE: func(_ *cobra.Command, _ []string) error {
-		return runList()
-	},
+}
+
+// runRoot backs rootCmd.RunE; it's wired up in init() rather than inline in
+// the rootCmd literal because it (via runMenu -> menuCommands) reads
+// rootCmd.Commands(), and referencing rootCmd from within its own literal
+// would be an initialization cycle.
+func runRoot(_ *cobra.Command, _ []string) error {
+	if err := runList(); err != nil {
+		return err
+	}
+	if !interactive() {
+		return nil
+	}
+	fmt.Println()
+	return runMenu()
 }
 
 func init() {
+	rootCmd.RunE = runRoot
 	rootCmd.PersistentFlags().BoolVarP(&yes, "yes", "y", false, "assume yes: skip confirmations, never prompt")
-	rootCmd.CompletionOptions.DisableDefaultCmd = true   // completions are generated via `wt shell-init`
+	rootCmd.CompletionOptions.DisableDefaultCmd = true   // completions are generated via `wt setup`
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true}) // -h/--help covers this; no standalone `help` command
 	rootCmd.AddCommand(
 		addCmd, listCmd, removeCmd, renameCmd, switchCmd,
-		lockCmd, unlockCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd,
+		lockCmd, unlockCmd, organizeCmd, pruneCmd, setupCmd, genManCmd,
 	)
 }
 
@@ -65,7 +79,7 @@ func Execute() {
 // strays into place is an opt-in action via `wt organize`.
 func conventionCheck(cmd *cobra.Command) {
 	switch cmd.Name() {
-	case "doctor", "prune", "shell-init", "gen-man", "version", "__complete", "__completeNoDesc":
+	case "wt", "list", "organize", "prune", "setup", "gen-man", "version", "__complete", "__completeNoDesc":
 		return
 	}
 	repo, err := core.Discover(".")

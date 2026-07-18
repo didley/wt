@@ -8,13 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var doctorFix bool
+var organizeFix bool
 
-var doctorCmd = &cobra.Command{
-	Use:     "doctor",
-	Aliases: []string{"organize"},
-	Short:   "Check that every worktree follows the .worktrees convention",
-	Long: `Check the repository's worktrees (also available as ` + "`wt organize`" + `):
+var organizeCmd = &cobra.Command{
+	Use:   "organize",
+	Short: "Check that every worktree follows the .worktrees convention",
+	Long: `Check the repository's worktrees:
 
   - worktrees outside <repo>.worktrees/ (e.g. created with raw
     ` + "`git worktree add`" + `) are reported and can be moved into place
@@ -23,14 +22,14 @@ var doctorCmd = &cobra.Command{
 
 Interactively each fix is confirmed; --fix applies everything.`,
 	Args: cobra.NoArgs,
-	RunE: runDoctor,
+	RunE: runOrganize,
 }
 
 func init() {
-	doctorCmd.Flags().BoolVar(&doctorFix, "fix", false, "apply all fixes without prompting")
+	organizeCmd.Flags().BoolVar(&organizeFix, "fix", false, "apply all fixes without prompting")
 }
 
-func runDoctor(_ *cobra.Command, _ []string) error {
+func runOrganize(_ *cobra.Command, _ []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
@@ -40,7 +39,7 @@ func runDoctor(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("listing worktrees: %w", err)
 	}
 
-	fix := doctorFix || yes
+	fix := organizeFix || yes
 	vs := repo.Violations(wts)
 	prunable := prunableWorktrees(wts)
 
