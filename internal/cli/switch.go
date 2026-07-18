@@ -13,10 +13,10 @@ var errDirGone = errors.New("no longer exists")
 var switchCmd = &cobra.Command{
 	Use:     "switch [worktree]",
 	Aliases: []string{"cd"},
-	Short:   "Jump to a worktree (prints its path; cds with shell-init installed)",
+	Short:   "Jump to a worktree (cds with `wt setup` installed)",
 	Long: `Pick a worktree and print its path to stdout.
 
-With the shell integration installed (see ` + "`wt shell-init`" + `), the wt
+With the shell integration installed (see ` + "`wt setup`" + `), the wt
 shell function captures the path and cd's to it. Without it, compose it
 yourself: cd "$(wt switch my-branch)".`,
 	Args: cobra.MaximumNArgs(1),
@@ -46,7 +46,7 @@ func runSwitch(_ *cobra.Command, args []string) error {
 		return err
 	}
 	if target.Prunable {
-		return fmt.Errorf("the directory of %q %w (run `wt doctor`)", repo.WorktreeName(target), errDirGone)
+		return fmt.Errorf("the directory of %q %w (run `wt organize`)", repo.WorktreeName(target), errDirGone)
 	}
 	// The path is the only stdout output; the shell wrapper depends on this.
 	fmt.Println(target.Path)

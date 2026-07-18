@@ -26,6 +26,12 @@
   <url type="homepage">https://github.com/didley/wt</url>
   <url type="bugtracker">https://github.com/didley/wt/issues</url>
   <content_rating type="oars-1.1" />
+  <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a</image>
+      <caption>Worktree list for a repository</caption>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="0.2.1" date="2026-07-09">
       <description>

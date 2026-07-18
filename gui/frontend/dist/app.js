@@ -59,6 +59,11 @@ async function refreshIfChanged() {
 
 function wireStaticHandlers() {
   $("about-btn").addEventListener("click", openAboutDialog);
+  // A click that lands on the <dialog> element itself (not its content) is
+  // a click on the backdrop, since the dialog fills the content box.
+  $("dlg-about").addEventListener("click", (ev) => {
+    if (ev.target === $("dlg-about")) $("dlg-about").close();
+  });
   $("about-repo-link").addEventListener("click", () => api().OpenURL("https://github.com/didley/wt"));
   $("about-author-link").addEventListener("click", () => api().OpenURL("https://github.com/didley"));
   $("open-repo").addEventListener("click", async () => {
@@ -221,20 +226,22 @@ function card(wt, expand) {
   }
 
   const name = document.createElement("span");
-  name.className = "wt-name";
+  name.className = "user-selectable wt-name";
   name.textContent = wt.name;
   row.appendChild(name);
 
   if (wt.isMain) row.appendChild(badge("main checkout", "main"));
   if (wt.stray) row.appendChild(badge("outside .worktrees", "stray"));
   if (wt.locked) {
-    const lockBadge = badge("locked", "locked");
-    if (wt.lockReason) lockBadge.title = wt.lockReason;
-    row.appendChild(lockBadge);
+    row.appendChild(
+      wt.lockReason
+        ? badgeButton("locked", "locked has-reason", wt.lockReason, () => toast(`Reason: ${wt.lockReason}`, false))
+        : badge("locked", "locked")
+    );
   }
 
   const branch = document.createElement("span");
-  branch.className = "branch-chip mono";
+  branch.className = "user-selectable branch-chip mono";
   branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
   row.appendChild(branch);
 
@@ -291,7 +298,7 @@ function changeList(changes) {
     kind.className = "kind";
     kind.textContent = c.kind;
     const p = document.createElement("span");
-    p.className = "mono";
+    p.className = "user-selectable mono";
     p.textContent = c.path;
     li.append(kind, p);
     ul.appendChild(li);
@@ -304,6 +311,29 @@ function badge(text, cls) {
   b.className = "badge " + cls;
   b.textContent = text;
   return b;
+}
+
+// A badge that's a real, clickable/pressable control — for badges that
+// carry more info than fits in the label (e.g. a lock reason), so that
+// info isn't only reachable by hovering a title tooltip.
+function badgeButton(text, cls, title, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "badge " + cls;
+  b.append(text, infoDot());
+  b.title = title;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+// A small circular "i" marker — drawn in CSS rather than using a Unicode
+// circled-letter glyph, which doesn't render as a true circle in every font.
+function infoDot() {
+  const dot = document.createElement("span");
+  dot.className = "info-dot";
+  dot.textContent = "i";
+  dot.setAttribute("aria-hidden", "true");
+  return dot;
 }
 
 function btn(label, onClick) {
@@ -357,33 +387,71 @@ function openCreateDialog() {
   const dlg = $("dlg-create");
   $("create-branch").value = "";
   $("create-base").value = repo.defaultBranch;
-  const dl = $("branch-options");
-  dl.replaceChildren();
-  for (const b of repo.availableBranches) {
-    const opt = document.createElement("option");
-    opt.value = b;
-    dl.appendChild(opt);
-  }
+  renderExistingBranchChips();
   updateCreateHint();
   dlg.returnValue = "cancel";
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
-    const branch = $("create-branch").value.trim();
+    const branches = createBranchList();
     const base = $("create-base").value.trim();
-    await action(() => api().CreateWorktree(repo.mainPath, branch, base), "Creating worktree…");
+    if (branches.length === 0) return;
+    if (branches.length === 1) {
+      await action(() => api().CreateWorktree(repo.mainPath, branches[0], base), "Creating worktree…");
+    } else {
+      await action(
+        () => api().CreateWorktrees(repo.mainPath, branches, base),
+        `Creating ${branches.length} worktrees…`
+      );
+    }
   };
   openDialog(dlg);
 }
 
+// One branch per line, trimmed, blanks dropped.
+function createBranchList() {
+  return $("create-branch")
+    .value.split("\n")
+    .map((b) => b.trim())
+    .filter(Boolean);
+}
+
+// Existing branches without a worktree — clicking one appends it to the
+// textarea, since a <textarea> can't use a <datalist> for autocomplete.
+function renderExistingBranchChips() {
+  const wrap = $("create-existing-branches");
+  const list = $("create-existing-branches-list");
+  list.replaceChildren();
+  wrap.hidden = repo.availableBranches.length === 0;
+  for (const b of repo.availableBranches) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = b;
+    chip.addEventListener("click", () => {
+      const lines = createBranchList();
+      if (lines.includes(b)) return;
+      $("create-branch").value = lines.concat(b).join("\n") + "\n";
+      updateCreateHint();
+      $("create-branch").focus();
+    });
+    list.appendChild(chip);
+  }
+}
+
 function updateCreateHint() {
-  const branch = $("create-branch").value.trim();
-  const exists = repo && repo.availableBranches.includes(branch);
-  $("create-hint").textContent = exists
-    ? `Branch "${branch}" already exists — it will be checked out into the new worktree (base ref is ignored).`
-    : branch
-      ? `A new branch "${branch}" will be created from the base ref below.`
-      : "";
-  $("create-base-label").style.display = exists ? "none" : "";
+  const branches = createBranchList();
+  if (branches.length === 0) {
+    $("create-hint").textContent =
+      "One branch per line. Existing branches are checked out as-is; new ones are created from the base ref below.";
+    return;
+  }
+  const existingSet = new Set(repo ? repo.availableBranches : []);
+  const newCount = branches.filter((b) => !existingSet.has(b)).length;
+  const existingCount = branches.length - newCount;
+  const parts = [];
+  if (newCount > 0) parts.push(`${newCount} new branch${newCount > 1 ? "es" : ""} from the base ref below`);
+  if (existingCount > 0) parts.push(`${existingCount} existing branch${existingCount > 1 ? "es" : ""} checked out as-is`);
+  $("create-hint").textContent = parts.join(", ") + ".";
 }
 
 // ---------- lock dialog ----------
@@ -470,10 +538,10 @@ function openRemoveBulkDialog() {
   for (const wt of targets) {
     const li = document.createElement("li");
     const name = document.createElement("span");
-    name.className = "mono";
+    name.className = "user-selectable mono";
     name.textContent = wt.name;
     const branch = document.createElement("span");
-    branch.className = "kind";
+    branch.className = "user-selectable kind";
     branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
     li.append(name, branch);
     list.appendChild(li);
@@ -498,7 +566,7 @@ function openRemoveBulkDialog() {
     wrap.replaceChildren();
     for (const wt of dirtyTargets) {
       const name = document.createElement("p");
-      name.className = "mono small";
+      name.className = "user-selectable mono small";
       name.textContent = wt.name;
       wrap.append(name, changeList(wt.changes));
     }
@@ -567,7 +635,7 @@ function openAboutDialog() {
 
 function toast(message, isError) {
   const el = document.createElement("div");
-  el.className = "toast" + (isError ? " error" : "");
+  el.className = "user-selectable toast" + (isError ? " error" : "");
   el.textContent = message.replace(/^Error: /, "");
   $("toasts").appendChild(el);
   setTimeout(() => el.remove(), isError ? 9000 : 5000);
