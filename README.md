@@ -125,10 +125,12 @@ Branch names containing `/` get flattened directory names:
 
 ### `wt list` (alias: `ls`)
 
-Show all worktrees with their branch and dirty state as a `NAME  BRANCH
-STATE` table. Worktrees living outside `<repo>.worktrees/` are flagged with
-a trailing `*` and a `wt organize` hint. `--verbose`/`-v` adds full paths,
-directory names and commit hashes. `--porcelain` prints stable, versioned
+Show all worktrees with their branch, lock, and dirty state as a `NAME
+BRANCH  LOCK  STATE` table (a locked worktree shows 🔒 in the LOCK column;
+its reason is only shown with `--verbose`, since reasons can be long).
+Worktrees living outside `<repo>.worktrees/` are flagged with a trailing
+`*` and a `wt organize` hint. `--verbose`/`-v` adds full paths, directory
+names and commit hashes. `--porcelain` prints stable, versioned
 tab-separated output for scripts (bare `--porcelain` is shorthand for
 `--porcelain=v1`; only `v1` exists so far):
 `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]<TAB>head`.

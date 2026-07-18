@@ -83,19 +83,23 @@ func TestRunListNotARepo(t *testing.T) {
 	}
 }
 
-func TestLockSuffix(t *testing.T) {
+func TestLockCell(t *testing.T) {
 	cases := []struct {
-		name string
-		row  listRow
-		want string
+		name    string
+		row     listRow
+		verbose bool
+		want    string
 	}{
-		{"unlocked", listRow{wt: core.Worktree{Locked: false}}, ""},
-		{"locked no reason", listRow{wt: core.Worktree{Locked: true}}, " 🔒"},
-		{"locked with reason", listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, " 🔒 wip"},
+		{"unlocked, narrow", listRow{wt: core.Worktree{Locked: false}}, false, ""},
+		{"unlocked, verbose", listRow{wt: core.Worktree{Locked: false}}, true, ""},
+		{"locked no reason, narrow", listRow{wt: core.Worktree{Locked: true}}, false, "🔒"},
+		{"locked no reason, verbose", listRow{wt: core.Worktree{Locked: true}}, true, "🔒"},
+		{"locked with reason, narrow", listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, false, "🔒"},
+		{"locked with reason, verbose", listRow{wt: core.Worktree{Locked: true, LockReason: "wip"}}, true, "🔒 wip"},
 	}
 	for _, tc := range cases {
-		if got := tc.row.lockSuffix(); got != tc.want {
-			t.Errorf("%s: lockSuffix() = %q, want %q", tc.name, got, tc.want)
+		if got := tc.row.lockCell(tc.verbose); got != tc.want {
+			t.Errorf("%s: lockCell(%v) = %q, want %q", tc.name, tc.verbose, got, tc.want)
 		}
 	}
 }

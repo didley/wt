@@ -65,14 +65,17 @@ type listRow struct {
 	stray  bool
 }
 
-func (r listRow) lockSuffix() string {
+// lockCell is the row's LOCK column: just the lock indicator in the narrow
+// view, plus the reason (when there is one) in the verbose view — the
+// reason is often long, so it's held back until --verbose asks for detail.
+func (r listRow) lockCell(verbose bool) string {
 	if !r.wt.Locked {
 		return ""
 	}
-	if r.wt.LockReason == "" {
-		return " 🔒"
+	if !verbose || r.wt.LockReason == "" {
+		return "🔒"
 	}
-	return " 🔒 " + r.wt.LockReason
+	return "🔒 " + r.wt.LockReason
 }
 
 func runList() error {
@@ -201,17 +204,21 @@ func maxWidth(header string, values ...string) int {
 func renderNarrow(rows []listRow) {
 	names := make([]string, len(rows))
 	branches := make([]string, len(rows))
+	locks := make([]string, len(rows))
 	for i, r := range rows {
 		names[i] = nameLabel(r)
 		branches[i] = r.branch
+		locks[i] = r.lockCell(false)
 	}
 	nameWidth := maxWidth("NAME", names...)
 	branchWidth := maxWidth("BRANCH", branches...)
+	lockWidth := maxWidth("LOCK", locks...)
 
-	fmt.Println(stDim.Render(fmt.Sprintf("%-*s  %-*s  %s", nameWidth, "NAME", branchWidth, "BRANCH", "STATE")))
+	header := fmt.Sprintf("%-*s  %-*s  %-*s  %s", nameWidth, "NAME", branchWidth, "BRANCH", lockWidth, "LOCK", "STATE")
+	fmt.Println(stDim.Render(header))
 
 	anyStray := false
-	for _, r := range rows {
+	for i, r := range rows {
 		label := nameLabel(r)
 		styled := label
 		switch {
@@ -222,7 +229,9 @@ func renderNarrow(rows []listRow) {
 			styled = stBold.Render(label)
 		}
 
-		fmt.Printf("%s%s  %-*s  %s\n", styled, colorPad(label, nameWidth), branchWidth, r.branch, rowState(r))
+		lock := locks[i]
+		fmt.Printf("%s%s  %-*s  %s%s  %s\n",
+			styled, colorPad(label, nameWidth), branchWidth, r.branch, lock, colorPad(lock, lockWidth), rowState(r))
 	}
 	printFooter(rows, anyStray)
 }
@@ -231,23 +240,26 @@ func renderVerbose(rows []listRow) {
 	paths := make([]string, len(rows))
 	dirs := make([]string, len(rows))
 	branches := make([]string, len(rows))
+	locks := make([]string, len(rows))
 	for i, r := range rows {
 		paths[i] = r.wt.Path
 		dirs[i] = dirLabel(r)
 		branches[i] = r.branch
+		locks[i] = r.lockCell(true)
 	}
 	pathWidth := maxWidth("PATH", paths...)
 	dirWidth := maxWidth("DIR", dirs...)
 	branchWidth := maxWidth("BRANCH", branches...)
+	lockWidth := maxWidth("LOCK", locks...)
 
 	header := fmt.Sprintf(
-		"%-*s  %-*s  %-*s  %-*s  %s",
-		pathWidth, "PATH", dirWidth, "DIR", shortHeadLen, "HASH", branchWidth, "BRANCH", "STATE",
+		"%-*s  %-*s  %-*s  %-*s  %-*s  %s",
+		pathWidth, "PATH", dirWidth, "DIR", shortHeadLen, "HASH", branchWidth, "BRANCH", lockWidth, "LOCK", "STATE",
 	)
 	fmt.Println(stDim.Render(header))
 
 	anyStray := false
-	for _, r := range rows {
+	for i, r := range rows {
 		path := r.wt.Path
 		styledPath := path
 		if r.wt.IsMain {
@@ -259,24 +271,21 @@ func renderVerbose(rows []listRow) {
 			styledDir = stWarn.Render(dir)
 			anyStray = true
 		}
+		lock := locks[i]
 
-		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s\n",
+		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s%s  %s\n",
 			styledPath, colorPad(path, pathWidth), styledDir, colorPad(dir, dirWidth),
-			shortHeadLen, r.hash, branchWidth, r.branch, rowState(r))
+			shortHeadLen, r.hash, branchWidth, r.branch, lock, colorPad(lock, lockWidth), rowState(r))
 	}
 	printFooter(rows, anyStray)
 }
 
-// rowState renders a row's colored state cell, including any lock suffix.
+// rowState renders a row's colored state cell.
 func rowState(r listRow) string {
-	st := stGood.Render(r.state)
 	if r.dirty {
-		st = stWarn.Render(r.state)
+		return stWarn.Render(r.state)
 	}
-	if locked := r.lockSuffix(); locked != "" {
-		st += stWarn.Render(locked)
-	}
-	return st
+	return stGood.Render(r.state)
 }
 
 // printFooter prints the stray-worktree hint (once, marked the same as the
