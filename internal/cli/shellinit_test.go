@@ -8,7 +8,7 @@ import (
 )
 
 func TestWriteCompletion(t *testing.T) {
-	for _, shell := range []string{"bash", "zsh", "fish"} {
+	for _, shell := range []string{shellBash, shellZsh, shellFish} {
 		var buf bytes.Buffer
 		if err := writeCompletion(&buf, shell); err != nil {
 			t.Errorf("writeCompletion(%q): %v", shell, err)
@@ -44,7 +44,7 @@ func TestRunShellInitBash(t *testing.T) {
 	os.Stdout = w
 	t.Cleanup(func() { os.Stdout = origStdout })
 
-	runErr := runShellInit(shellInitCmd, []string{"bash"})
+	runErr := runShellInit(shellInitCmd, []string{shellBash})
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}

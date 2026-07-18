@@ -24,7 +24,7 @@ func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
 	mustGit(t, repo.MainPath, "worktree", "add", "-b", "stray/branch", stray)
 
 	// A prunable worktree: added conventionally, then its directory removed.
-	if err := runAdd(addCmd, []string{"feature/gone"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchGone}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
 	wts, err := repo.Worktrees()
@@ -33,7 +33,7 @@ func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
 	}
 	var gonePath string
 	for _, w := range wts {
-		if w.Branch == "feature/gone" {
+		if w.Branch == testBranchGone {
 			gonePath = w.Path
 		}
 	}
@@ -60,10 +60,10 @@ func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
 }
 
 func TestPlural(t *testing.T) {
-	if got := plural(1, "y", "ies"); got != "y" {
-		t.Errorf("plural(1) = %q, want y", got)
+	if got := plural(1); got != "entry" {
+		t.Errorf("plural(1) = %q, want entry", got)
 	}
-	if got := plural(2, "y", "ies"); got != "ies" {
-		t.Errorf("plural(2) = %q, want ies", got)
+	if got := plural(2); got != "entries" {
+		t.Errorf("plural(2) = %q, want entries", got)
 	}
 }

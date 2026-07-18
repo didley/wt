@@ -1,3 +1,6 @@
+// Package core implements wt's git worktree operations: discovering a
+// repository, listing/adding/removing/locking worktrees, and the
+// <repo>.worktrees/ convention that keeps them in one predictable place.
 package core
 
 import (
@@ -7,7 +10,13 @@ import (
 	"strings"
 )
 
+// ErrBareRepo is returned by Discover for bare repositories, which have no
+// main checkout to anchor <repo>.worktrees/ against.
 var ErrBareRepo = errors.New("bare repositories are not supported")
+
+// defaultBranchCandidates are checked, in order, when origin's HEAD is
+// unknown.
+var defaultBranchCandidates = []string{"main", "master"}
 
 // Repo represents a discovered git repository, anchored at its main worktree.
 type Repo struct {
@@ -48,12 +57,13 @@ func (r *Repo) ConventionalPath(name string) string {
 // DefaultBranch guesses the branch new worktrees should branch from:
 // origin's HEAD if known, otherwise main/master, otherwise the current branch.
 func (r *Repo) DefaultBranch() string {
-	if ref, err := Git(r.MainPath, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
+	ref, err := Git(r.MainPath, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+	if err == nil {
 		if _, name, ok := strings.Cut(ref, "/"); ok {
 			return name
 		}
 	}
-	for _, b := range []string{"main", "master"} {
+	for _, b := range defaultBranchCandidates {
 		if r.BranchExists(b) {
 			return b
 		}

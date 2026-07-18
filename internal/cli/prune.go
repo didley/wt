@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/didley/wt/internal/core"
 	"github.com/spf13/cobra"
 )
+
+var errPruneNeedsYes = errors.New("non-interactive prune needs --yes")
 
 var pruneCmd = &cobra.Command{
 	Use:   "prune",
@@ -23,14 +26,14 @@ This is also offered as part of ` + "`wt doctor`" + `.`,
 	RunE: runPrune,
 }
 
-func runPrune(cmd *cobra.Command, args []string) error {
+func runPrune(_ *cobra.Command, _ []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
 
 	prunable := prunableWorktrees(wts)
@@ -39,7 +42,8 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "%d stale worktree entr%s (directory deleted manually):\n", len(prunable), plural(len(prunable), "y", "ies"))
+	fmt.Fprintf(os.Stderr, "%d stale worktree %s (directory deleted manually):\n",
+		len(prunable), plural(len(prunable)))
 	for _, w := range prunable {
 		fmt.Fprintf(os.Stderr, "    %s\n", w.Path)
 	}
@@ -55,12 +59,12 @@ func runPrune(cmd *cobra.Command, args []string) error {
 				return errAborted
 			}
 		default:
-			return fmt.Errorf("non-interactive prune needs --yes")
+			return errPruneNeedsYes
 		}
 	}
 
 	if err := repo.PruneWorktrees(); err != nil {
-		return err
+		return fmt.Errorf("pruning worktrees: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "  pruned")
 	return nil

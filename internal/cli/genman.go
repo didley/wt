@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -15,21 +16,26 @@ var genManCmd = &cobra.Command{
 	Short:  "Generate man pages into a directory",
 	Hidden: true,
 	Args:   cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := os.MkdirAll(args[0], 0o755); err != nil {
-			return err
+	RunE: func(_ *cobra.Command, args []string) error {
+		err := os.MkdirAll(args[0], dirPerm)
+		if err != nil {
+			return fmt.Errorf("creating %s: %w", args[0], err)
 		}
 		rootCmd.DisableAutoGenTag = true // keep output reproducible
 		// The man renderer (md2man) treats placeholders like <repo> as HTML
 		// tags and silently drops them. Escaping is safe here because this
 		// process exits right after generating; --help is untouched.
 		escapeAngleBrackets(rootCmd)
-		return doc.GenManTree(rootCmd, &doc.GenManHeader{
+		err = doc.GenManTree(rootCmd, &doc.GenManHeader{
 			Title:   "WT",
 			Section: "1",
 			Source:  "wt " + version,
 			Manual:  "wt manual",
 		}, args[0])
+		if err != nil {
+			return fmt.Errorf("generating man pages: %w", err)
+		}
+		return nil
 	},
 }
 

@@ -6,6 +6,11 @@ import (
 	"testing"
 )
 
+const (
+	testRepoA = "/repo-a"
+	testRepoB = "/repo-b"
+)
+
 // withConfigDir redirects os.UserConfigDir() into a temp dir and returns the
 // directory configPath() is expected to resolve under. The env var
 // UserConfigDir honors is platform-specific: XDG_CONFIG_HOME on Linux, HOME
@@ -14,7 +19,7 @@ func withConfigDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	switch runtime.GOOS {
-	case "darwin":
+	case goosDarwin:
 		t.Setenv("HOME", dir)
 		return filepath.Join(dir, "Library", "Application Support")
 	default:
@@ -62,26 +67,26 @@ func TestRememberRepo(t *testing.T) {
 	withConfigDir(t)
 	a := &App{}
 
-	a.rememberRepo("/repo-a")
-	a.rememberRepo("/repo-b")
+	a.rememberRepo(testRepoA)
+	a.rememberRepo(testRepoB)
 	got := a.RecentRepos()
-	want := []string{"/repo-b", "/repo-a"}
+	want := []string{testRepoB, testRepoA}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("RecentRepos() = %v, want %v", got, want)
 	}
 
 	// Re-remembering the most-recent path is a no-op (avoids rewriting the
 	// config file on every auto-refresh tick).
-	a.rememberRepo("/repo-b")
+	a.rememberRepo(testRepoB)
 	got = a.RecentRepos()
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("RecentRepos() after re-remembering head = %v, want unchanged %v", got, want)
 	}
 
 	// Remembering an existing-but-not-head path moves it to the front.
-	a.rememberRepo("/repo-a")
+	a.rememberRepo(testRepoA)
 	got = a.RecentRepos()
-	want = []string{"/repo-a", "/repo-b"}
+	want = []string{testRepoA, testRepoB}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("RecentRepos() after re-remembering = %v, want %v", got, want)
 	}
@@ -90,7 +95,7 @@ func TestRememberRepo(t *testing.T) {
 func TestRememberRepo_CapsAtTen(t *testing.T) {
 	withConfigDir(t)
 	a := &App{}
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		a.rememberRepo(filepath.Join("/repo", string(rune('a'+i))))
 	}
 	got := a.RecentRepos()
@@ -102,11 +107,11 @@ func TestRememberRepo_CapsAtTen(t *testing.T) {
 func TestForgetRepo(t *testing.T) {
 	withConfigDir(t)
 	a := &App{}
-	a.rememberRepo("/repo-a")
-	a.rememberRepo("/repo-b")
+	a.rememberRepo(testRepoA)
+	a.rememberRepo(testRepoB)
 
-	got := a.ForgetRepo("/repo-a")
-	want := []string{"/repo-b"}
+	got := a.ForgetRepo(testRepoA)
+	want := []string{testRepoB}
 	if len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("ForgetRepo() = %v, want %v", got, want)
 	}
@@ -128,13 +133,13 @@ func TestLockReasonSuffix(t *testing.T) {
 }
 
 func TestPlural(t *testing.T) {
-	if got := plural(1, "y", "ies"); got != "y" {
-		t.Errorf("plural(1, ...) = %q, want %q", got, "y")
+	if got := plural(1); got != "entry" {
+		t.Errorf("plural(1) = %q, want %q", got, "entry")
 	}
-	if got := plural(0, "y", "ies"); got != "ies" {
-		t.Errorf("plural(0, ...) = %q, want %q", got, "ies")
+	if got := plural(0); got != pluralEntries {
+		t.Errorf("plural(0) = %q, want %q", got, "entries")
 	}
-	if got := plural(2, "y", "ies"); got != "ies" {
-		t.Errorf("plural(2, ...) = %q, want %q", got, "ies")
+	if got := plural(2); got != pluralEntries {
+		t.Errorf("plural(2) = %q, want %q", got, "entries")
 	}
 }

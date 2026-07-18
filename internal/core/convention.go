@@ -45,11 +45,13 @@ func (r *Repo) Violations(wts []Worktree) []Violation {
 // aliases like /home -> /var/home on ostree systems. Falls back through the
 // parent when the leaf does not exist yet.
 func resolvePath(p string) string {
-	if rp, err := filepath.EvalSymlinks(p); err == nil {
+	rp, err := filepath.EvalSymlinks(p)
+	if err == nil {
 		return rp
 	}
 	clean := filepath.Clean(p)
-	if rd, err := filepath.EvalSymlinks(filepath.Dir(clean)); err == nil {
+	rd, err := filepath.EvalSymlinks(filepath.Dir(clean))
+	if err == nil {
 		return filepath.Join(rd, filepath.Base(clean))
 	}
 	return clean
@@ -68,7 +70,8 @@ func isWithin(dir, p string) bool {
 // .worktrees dir addressed under the other.
 func hasAncestor(p string, dir os.FileInfo) bool {
 	for cur := filepath.Dir(filepath.Clean(p)); ; cur = filepath.Dir(cur) {
-		if fi, err := os.Stat(cur); err == nil && os.SameFile(fi, dir) {
+		fi, err := os.Stat(cur)
+		if err == nil && os.SameFile(fi, dir) {
 			return true
 		}
 		if cur == filepath.Dir(cur) { // hit the filesystem root
@@ -85,7 +88,8 @@ func isRelInside(rel string) bool {
 func uniquePath(p string) string {
 	candidate := p
 	for i := 2; ; i++ {
-		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+		_, err := os.Stat(candidate)
+		if os.IsNotExist(err) {
 			return candidate
 		}
 		candidate = fmt.Sprintf("%s-%d", p, i)

@@ -10,10 +10,13 @@ import (
 
 var renameBranchToo bool
 
+// renameArgCount is <worktree> and <new-name>.
+const renameArgCount = 2
+
 var renameCmd = &cobra.Command{
 	Use:   "rename <worktree> <new-name>",
 	Short: "Rename a worktree directory (branch unchanged unless --branch)",
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.ExactArgs(renameArgCount),
 	RunE:  runRename,
 }
 
@@ -21,14 +24,14 @@ func init() {
 	renameCmd.Flags().BoolVar(&renameBranchToo, "branch", false, "also rename the branch to <new-name>")
 }
 
-func runRename(cmd *cobra.Command, args []string) error {
+func runRename(_ *cobra.Command, args []string) error {
 	repo, err := discover()
 	if err != nil {
 		return err
 	}
 	wts, err := repo.Worktrees()
 	if err != nil {
-		return err
+		return fmt.Errorf("listing worktrees: %w", err)
 	}
 	target, err := resolveWorktree(repo, linkedWorktrees(wts), args[0])
 	if err != nil {
@@ -37,14 +40,14 @@ func runRename(cmd *cobra.Command, args []string) error {
 	oldName := repo.WorktreeName(target)
 	newName := core.SanitizeBranchName(args[1])
 	newPath := repo.ConventionalPath(newName)
-	if _, err := os.Stat(newPath); err == nil {
-		return fmt.Errorf("directory already exists: %s", newPath)
+	if _, statErr := os.Stat(newPath); statErr == nil {
+		return fmt.Errorf("%w: %s", errDirExists, newPath)
 	}
-	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
-		return err
+	if err := os.MkdirAll(repo.WorktreesDir(), dirPerm); err != nil {
+		return fmt.Errorf("creating worktrees directory: %w", err)
 	}
 	if err := repo.MoveWorktree(target.Path, newPath); err != nil {
-		return err
+		return fmt.Errorf("renaming worktree: %w", err)
 	}
 	fmt.Printf("Renamed worktree %q -> %q\n  %s\n", oldName, newName, newPath)
 

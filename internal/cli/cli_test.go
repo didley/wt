@@ -8,6 +8,16 @@ import (
 	"github.com/didley/wt/internal/core"
 )
 
+// Branch/worktree names shared across tests in this package.
+const (
+	testBranchA         = "feature/a"
+	testBranchX         = "feature/x"
+	testBranchGone      = "feature/gone"
+	testBranchLock      = "feature-lock"
+	testBranchLockSlash = "feature/lock"
+	testNameNope        = "nope" // a name that never resolves to a worktree
+)
+
 // newTestRepo creates a real git repo named my-app in a temp dir with one
 // commit on main, isolated from the developer's global git config, and
 // chdirs the test into it (mirrors internal/core/core_test.go's helper,

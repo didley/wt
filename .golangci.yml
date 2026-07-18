@@ -6,6 +6,9 @@ linters:
     # Needs an explicit allow/deny list to do anything meaningful; not
     # requested, skip until there's an actual dependency policy.
     - depguard
+    # Deprecated in favor of gomodguard_v2, which has the same "needs an
+    # actual policy first" problem as depguard above.
+    - gomodguard
     # cobra.Command{} / huh form literals intentionally leave most fields
     # zero-valued; flags nearly every struct literal in this codebase.
     - exhaustruct
@@ -34,6 +37,12 @@ linters:
     # deliberately does white-box testing of unexported helpers
     # (parseWorktreeList, sortWorktrees, SanitizeBranchName, ...).
     - testpackage
+    # Objects to `if err := f(); err != nil { return err }`, which is the
+    # standard idiomatic Go error-check shape (Effective Go, the Go wiki)
+    # and this codebase's dominant style throughout internal/cli and
+    # internal/core. Enforcing the two-line form here would be a large,
+    # purely stylistic rewrite against the grain of idiomatic Go.
+    - noinlineerr
 
   settings:
     cyclop:
@@ -60,6 +69,13 @@ linters:
           - dupl
           - gosec
           - err113
+          # Sequential assertions in integration-style tests (e.g.
+          # internal/core/core_test.go's TestWorktreeLifecycle) rack up
+          # branches without indicating real complexity/maintainability
+          # risk the way they would in production logic.
+          - gocyclo
+          - gocognit
+          - cyclop
 
 formatters:
   enable:

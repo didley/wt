@@ -7,6 +7,18 @@ import (
 	"strings"
 )
 
+// gitWorktree is the `git worktree` subcommand name, shared by every
+// invocation below and by the porcelain output's "worktree <path>" header.
+const gitWorktree = "worktree"
+
+const (
+	// rankMain, rankLocked and rankOther order Worktrees(): main first,
+	// then locked worktrees, then everything else.
+	rankMain = iota
+	rankLocked
+	rankOther
+)
+
 // Worktree is one entry from `git worktree list --porcelain`.
 type Worktree struct {
 	Path       string
@@ -23,7 +35,7 @@ type Worktree struct {
 // Worktrees lists all worktrees of the repository, ordered main first,
 // then locked worktrees, then the rest (each group keeping git's order).
 func (r *Repo) Worktrees() ([]Worktree, error) {
-	out, err := Git(r.MainPath, "worktree", "list", "--porcelain")
+	out, err := Git(r.MainPath, gitWorktree, "list", "--porcelain")
 	if err != nil {
 		return nil, err
 	}
@@ -38,11 +50,11 @@ func sortWorktrees(wts []Worktree) {
 	rank := func(w Worktree) int {
 		switch {
 		case w.IsMain:
-			return 0
+			return rankMain
 		case w.Locked:
-			return 1
+			return rankLocked
 		default:
-			return 2
+			return rankOther
 		}
 	}
 	sort.SliceStable(wts, func(i, j int) bool {
@@ -59,13 +71,13 @@ func parseWorktreeList(out string) []Worktree {
 			cur = nil
 		}
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if line == "" {
 			flush()
 			continue
 		}
 		key, val, _ := strings.Cut(line, " ")
-		if key == "worktree" {
+		if key == gitWorktree {
 			flush()
 			cur = &Worktree{Path: val}
 			continue
@@ -73,21 +85,7 @@ func parseWorktreeList(out string) []Worktree {
 		if cur == nil {
 			continue
 		}
-		switch key {
-		case "HEAD":
-			cur.Head = val
-		case "branch":
-			cur.Branch = strings.TrimPrefix(val, "refs/heads/")
-		case "bare":
-			cur.Bare = true
-		case "detached":
-			cur.Detached = true
-		case "locked":
-			cur.Locked = true
-			cur.LockReason = val
-		case "prunable":
-			cur.Prunable = true
-		}
+		applyWorktreeField(cur, key, val)
 	}
 	flush()
 	if len(wts) > 0 {
@@ -96,8 +94,29 @@ func parseWorktreeList(out string) []Worktree {
 	return wts
 }
 
-// Name is the worktree's display name: its path relative to the .worktrees
-// dir for conforming worktrees, otherwise the directory's base name.
+// applyWorktreeField applies one "key value" line of `git worktree list
+// --porcelain` output (other than the leading "worktree <path>" header) to w.
+func applyWorktreeField(w *Worktree, key, val string) {
+	switch key {
+	case "HEAD":
+		w.Head = val
+	case "branch":
+		w.Branch = strings.TrimPrefix(val, "refs/heads/")
+	case "bare":
+		w.Bare = true
+	case "detached":
+		w.Detached = true
+	case "locked":
+		w.Locked = true
+		w.LockReason = val
+	case "prunable":
+		w.Prunable = true
+	}
+}
+
+// WorktreeName is the worktree's display name: its path relative to the
+// .worktrees dir for conforming worktrees, otherwise the directory's base
+// name.
 func (r *Repo) WorktreeName(w Worktree) string {
 	if w.IsMain {
 		return r.Name()
@@ -111,7 +130,7 @@ func (r *Repo) WorktreeName(w Worktree) string {
 // AddWorktree creates a worktree at path. With createBranch it creates branch
 // from baseRef; otherwise it checks out the existing branch.
 func (r *Repo) AddWorktree(path, branch, baseRef string, createBranch bool) error {
-	args := []string{"worktree", "add"}
+	args := []string{gitWorktree, "add"}
 	if createBranch {
 		args = append(args, "-b", branch, path, baseRef)
 	} else {
@@ -131,7 +150,7 @@ func (r *Repo) AddWorktree(path, branch, baseRef string, createBranch bool) erro
 // --force: it can't validate a working tree that isn't there. That case is
 // exactly what `git worktree prune` is for, so fall back to it.
 func (r *Repo) RemoveWorktree(path string, force bool) error {
-	args := []string{"worktree", "remove"}
+	args := []string{gitWorktree, "remove"}
 	if force {
 		// A locked worktree needs --force twice ("remove -f -f" per git's
 		// own error message); a single --force is enough for dirty ones
@@ -161,7 +180,7 @@ func isMissingAdminFilesError(err error) bool {
 // `git worktree remove` and `prune` until explicitly unlocked. reason is
 // optional and shown by `git worktree list` and `wt list`.
 func (r *Repo) LockWorktree(path, reason string) error {
-	args := []string{"worktree", "lock"}
+	args := []string{gitWorktree, "lock"}
 	if reason != "" {
 		args = append(args, "--reason", reason)
 	}
@@ -172,19 +191,19 @@ func (r *Repo) LockWorktree(path, reason string) error {
 
 // UnlockWorktree removes a lock placed by LockWorktree.
 func (r *Repo) UnlockWorktree(path string) error {
-	_, err := Git(r.MainPath, "worktree", "unlock", path)
+	_, err := Git(r.MainPath, gitWorktree, "unlock", path)
 	return err
 }
 
 // MoveWorktree relocates a worktree directory.
 func (r *Repo) MoveWorktree(oldPath, newPath string) error {
-	_, err := Git(r.MainPath, "worktree", "move", oldPath, newPath)
+	_, err := Git(r.MainPath, gitWorktree, "move", oldPath, newPath)
 	return err
 }
 
 // PruneWorktrees drops stale administrative entries for deleted directories.
 func (r *Repo) PruneWorktrees() error {
-	_, err := Git(r.MainPath, "worktree", "prune")
+	_, err := Git(r.MainPath, gitWorktree, "prune")
 	return err
 }
 

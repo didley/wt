@@ -14,7 +14,7 @@ func TestRunRemoveClean(t *testing.T) {
 	withYes(t)
 	resetRemoveFlags(t)
 	repo := newTestRepo(t)
-	if err := runAdd(addCmd, []string{"feature/x"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchX}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
 
@@ -27,11 +27,11 @@ func TestRunRemoveClean(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range wts {
-		if w.Branch == "feature/x" {
+		if w.Branch == testBranchX {
 			t.Errorf("worktree feature/x still present after remove: %+v", w)
 		}
 	}
-	if !repo.BranchExists("feature/x") {
+	if !repo.BranchExists(testBranchX) {
 		t.Error("branch feature/x deleted by remove without --delete-branch")
 	}
 }

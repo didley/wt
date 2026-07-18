@@ -16,7 +16,7 @@ func TestRunPruneNothingToPrune(t *testing.T) {
 func TestRunPruneStaleEntry(t *testing.T) {
 	withYes(t)
 	repo := newTestRepo(t)
-	if err := runAdd(addCmd, []string{"feature/gone"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchGone}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
 	wts, err := repo.Worktrees()
@@ -25,7 +25,7 @@ func TestRunPruneStaleEntry(t *testing.T) {
 	}
 	var path string
 	for _, w := range wts {
-		if w.Branch == "feature/gone" {
+		if w.Branch == testBranchGone {
 			path = w.Path
 		}
 	}

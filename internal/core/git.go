@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,17 +32,23 @@ func (e *GitError) Error() string {
 // delegated to the host via flatpak-spawn; repos then see the user's real
 // git config and credential helpers.
 func Git(dir string, args ...string) (string, error) {
+	ctx := context.Background()
 	var cmd *exec.Cmd
 	if os.Getenv("FLATPAK_ID") != "" {
-		cmd = exec.Command("flatpak-spawn", append([]string{"--host", "git", "-C", dir}, args...)...)
+		// args come from wt's own call sites (never raw user input passed
+		// through to a shell), and exec.Command never invokes one, so this
+		// isn't shell injection — gosec just can't tell args are trusted here.
+		hostArgs := append([]string{"--host", "git", "-C", dir}, args...)
+		cmd = exec.CommandContext(ctx, "flatpak-spawn", hostArgs...) //nolint:gosec
 	} else {
-		cmd = exec.Command("git", args...)
+		cmd = exec.CommandContext(ctx, "git", args...) //nolint:gosec
 		cmd.Dir = dir
 	}
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if err != nil {
 		return "", &GitError{Args: args, Stderr: stderr.String(), Err: err}
 	}
 	return strings.TrimRight(stdout.String(), "\n"), nil

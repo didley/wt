@@ -54,7 +54,7 @@ func TestRunRenameWithBranch(t *testing.T) {
 func TestRunRenameUnknownTarget(t *testing.T) {
 	withYes(t)
 	newTestRepo(t)
-	if err := runRename(renameCmd, []string{"nope", "new"}); err == nil {
+	if err := runRename(renameCmd, []string{testNameNope, "new"}); err == nil {
 		t.Fatal("runRename on unknown target: want error, got nil")
 	}
 }
@@ -62,7 +62,7 @@ func TestRunRenameUnknownTarget(t *testing.T) {
 func TestRunRenameExistingDestination(t *testing.T) {
 	withYes(t)
 	newTestRepo(t)
-	if err := runAdd(addCmd, []string{"feature/a"}); err != nil {
+	if err := runAdd(addCmd, []string{testBranchA}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
 	if err := runAdd(addCmd, []string{"feature/b"}); err != nil {

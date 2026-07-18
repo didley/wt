@@ -5,8 +5,11 @@ import (
 	"strings"
 )
 
+// ChangeKind categorizes one uncommitted change reported by `git status`.
 type ChangeKind int
 
+// The possible kinds of uncommitted change, in the order SummarizeChanges
+// reports them (most to least urgent).
 const (
 	Modified ChangeKind = iota
 	Added
@@ -56,6 +59,14 @@ func WorktreeStatus(path string) ([]FileChange, error) {
 	return parseStatusV2(out), nil
 }
 
+// Field counts for porcelain-v2 record kinds ("1" = ordinary changed entry,
+// "2" = renamed/copied entry, "u" = unmerged entry), per git-status(1).
+const (
+	ordinaryFields = 9
+	renamedFields  = 10
+	unmergedFields = 11
+)
+
 func parseStatusV2(out string) []FileChange {
 	records := strings.Split(out, "\x00")
 	var changes []FileChange
@@ -66,20 +77,20 @@ func parseStatusV2(out string) []FileChange {
 		}
 		switch rec[0] {
 		case '1':
-			parts := strings.SplitN(rec, " ", 9)
-			if len(parts) == 9 {
-				changes = append(changes, FileChange{Path: parts[8], Kind: kindFromXY(parts[1])})
+			parts := strings.SplitN(rec, " ", ordinaryFields)
+			if len(parts) == ordinaryFields {
+				changes = append(changes, FileChange{Path: parts[ordinaryFields-1], Kind: kindFromXY(parts[1])})
 			}
 		case '2':
-			parts := strings.SplitN(rec, " ", 10)
-			if len(parts) == 10 {
-				changes = append(changes, FileChange{Path: parts[9], Kind: Renamed})
+			parts := strings.SplitN(rec, " ", renamedFields)
+			if len(parts) == renamedFields {
+				changes = append(changes, FileChange{Path: parts[renamedFields-1], Kind: Renamed})
 			}
 			i++ // the following record is the rename's origin path
 		case 'u':
-			parts := strings.SplitN(rec, " ", 11)
-			if len(parts) == 11 {
-				changes = append(changes, FileChange{Path: parts[10], Kind: Conflicted})
+			parts := strings.SplitN(rec, " ", unmergedFields)
+			if len(parts) == unmergedFields {
+				changes = append(changes, FileChange{Path: parts[unmergedFields-1], Kind: Conflicted})
 			}
 		case '?':
 			changes = append(changes, FileChange{Path: rec[2:], Kind: Untracked})
@@ -90,8 +101,11 @@ func parseStatusV2(out string) []FileChange {
 
 // kindFromXY maps a porcelain-v2 XY field to a change kind, preferring the
 // working-tree side and falling back to the staged side.
+// xyLen is the length of porcelain-v2's XY status code field.
+const xyLen = 2
+
 func kindFromXY(xy string) ChangeKind {
-	if len(xy) != 2 {
+	if len(xy) != xyLen {
 		return Modified
 	}
 	c := xy[1]
