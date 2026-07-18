@@ -124,7 +124,11 @@ func menuBarEntries(cmds []*cobra.Command) ([]menuBarItem, map[string]int) {
 // It loops: once a command finishes, the menu comes back around rather than
 // exiting, so you're never dropped out of the session after one action.
 // Cancelling out of a command's own sub-prompts (Ctrl+C/Esc) also returns
-// here rather than exiting `wt` entirely — same idea, one level down.
+// here rather than exiting `wt` entirely — same idea, one level down. Before
+// showing the bar again, the worktree list is reprinted (narrow view) so
+// whatever the just-run command changed — a new/removed/locked worktree,
+// dirty state, ... — is visible before picking what's next; skipped after
+// "list -v" itself, which already just showed it.
 func runMenu() error {
 	cmds := menuCommands()
 	items, dispatch := menuBarEntries(cmds)
@@ -138,12 +142,21 @@ func runMenu() error {
 			return err
 		}
 
-		exit, err := dispatchMenuChoice(cmds, dispatch[name])
+		idx := dispatch[name]
+		exit, err := dispatchMenuChoice(cmds, idx)
 		if err != nil {
 			return err
 		}
 		if exit {
 			return nil
+		}
+
+		if idx != menuVerboseListIdx {
+			listVerbose = false
+			if err := runList(); err != nil {
+				return err
+			}
+			fmt.Println()
 		}
 	}
 }
