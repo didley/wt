@@ -293,13 +293,15 @@ func renderVerbose(rows []listRow) {
 
 // markerStyle is the NAME/DIR cell's style: stWarn for a stray worktree
 // (out of convention is the one thing worth calling out in color), stBold
-// for the main checkout, otherwise unstyled — locked is intentionally not
-// colored here; the "^" marker plus the footer legend are enough, and a
-// locked worktree isn't otherwise unusual the way a stray one is.
+// for the main checkout, stGrayBold (bold, but neutral gray rather than a
+// color) for a locked one — enough to draw the eye without implying
+// "warning" the way stray's red would — otherwise unstyled.
 func markerStyle(r listRow) lipgloss.Style {
 	switch {
 	case r.stray:
 		return stWarn
+	case r.wt.Locked:
+		return stGrayBold
 	case r.wt.IsMain:
 		return stBold
 	default:

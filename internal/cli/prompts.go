@@ -46,6 +46,10 @@ var (
 	stGood = lipgloss.NewStyle().Foreground(huhGreen).Bold(true)
 	stWarn = lipgloss.NewStyle().Foreground(huhRed)
 	stBold = lipgloss.NewStyle().Foreground(huhIndigo).Bold(true)
+	// stGrayBold is bold but otherwise neutral (grey, ANSI 8) — used for a
+	// locked worktree's name: worth calling attention to, but not colored
+	// like stray (out-of-convention) or the main checkout's own bold indigo.
+	stGrayBold = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("8"))
 )
 
 func warnf(format string, a ...any) {
