@@ -148,7 +148,7 @@ func renderList(repo *core.Repo, rows []listRow) {
 			line(stDim.Render(conn)+r.name+colorPad(conn+r.name, width), r.branch, r.state, r.dirty, r.lockSuffix())
 		}
 	} else if len(stray) == 0 {
-		fmt.Println(stDim.Render("no worktrees yet — create one with `wt create`"))
+		fmt.Println(stDim.Render("no worktrees yet — create one with `wt add`"))
 	}
 	for _, r := range stray {
 		fmt.Printf("%s  %-*s  %s\n", stWarn.Render("! "+r.wt.Path+"  (outside .worktrees — run `wt organize`)"), bwidth, r.branch, r.state+r.lockSuffix())

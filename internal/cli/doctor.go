@@ -39,6 +39,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	fix := doctorFix || yes
 	vs := repo.Violations(wts)
 	prunable := prunableWorktrees(wts)
 
@@ -53,7 +54,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "    %s\n    -> %s\n", v.Worktree.Path, v.Target)
 		}
 		switch {
-		case doctorFix:
+		case fix:
 			moveViolations(repo, vs, false)
 		case interactive():
 			moveViolations(repo, vs, true)
@@ -67,8 +68,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		for _, w := range prunable {
 			fmt.Fprintf(os.Stderr, "    %s\n", w.Path)
 		}
-		doPrune := doctorFix
-		if !doctorFix && interactive() {
+		doPrune := fix
+		if !fix && interactive() {
 			doPrune, err = confirm("Prune stale entries?", "Runs `git worktree prune`. Branches are not affected.", true)
 			if err != nil {
 				return err

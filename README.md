@@ -93,7 +93,8 @@ so use one or the other.
 ### Shell integration (recommended)
 
 Lets `wt switch` / `wt cd` change your shell's directory (a child process
-can't do that on its own). Add one line to your shell rc:
+can't do that on its own), and adds tab completion for wt's commands and
+flags. Add one line to your shell rc:
 
 ```sh
 eval "$(wt shell-init bash)"          # ~/.bashrc
@@ -104,15 +105,17 @@ wt shell-init fish | source           # ~/.config/fish/config.fish
 ## CLI usage
 
 Run `wt` with no arguments to list worktrees. All commands are interactive
-when run in a terminal and scriptable with flags.
+when run in a terminal and scriptable with flags. Pass `-y`/`--yes`
+(available on every command) to skip confirmation prompts and fail instead
+of prompting for missing input — the flag to use in scripts and CI.
 
-### `wt create [branch]`
+### `wt add [branch]`
 
 Create a worktree under `<repo>.worktrees/`.
 
-- `wt create` — interactive: new branch (name + base ref) or an existing
+- `wt add` — interactive: new branch (name + base ref) or an existing
   branch that has no worktree yet.
-- `wt create fix-login` — non-interactive. If the branch exists it's checked
+- `wt add fix-login` — non-interactive. If the branch exists it's checked
   out into the worktree; otherwise it's created from the repo's default
   branch (override with `--from <ref>`).
 
@@ -143,7 +146,7 @@ Flags for scripting:
 |---|---|
 | `--stash` | stash uncommitted changes before removing |
 | `--discard` | permanently discard uncommitted changes |
-| `--yes` / `-y` | skip confirmation prompts |
+| `--yes` / `-y` | skip confirmation prompts (global flag) |
 | `--delete-branch` | also delete the branch (refused if unmerged) |
 | `--force-delete-branch` | also delete the branch, even if unmerged |
 
@@ -180,7 +183,10 @@ use `wt` — no background watcher needed.
 
 ### `wt shell-init <bash|zsh|fish>`
 
-Print the shell wrapper function (see [Shell integration](#shell-integration-recommended)).
+Print the shell wrapper function and tab completions (see
+[Shell integration](#shell-integration-recommended)). Run it directly in a
+terminal (not piped into `eval`/`source`) to pick which piece(s) you want
+via an interactive prompt; piped or scripted usage always emits both.
 
 ## The GUI
 

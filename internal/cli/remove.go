@@ -14,7 +14,6 @@ import (
 var (
 	removeStash       bool
 	removeDiscard     bool
-	removeYes         bool
 	removeDelBranch   bool
 	removeForceBranch bool
 )
@@ -39,7 +38,6 @@ them permanently.`,
 func init() {
 	removeCmd.Flags().BoolVar(&removeStash, "stash", false, "stash uncommitted changes before removing")
 	removeCmd.Flags().BoolVar(&removeDiscard, "discard", false, "permanently discard uncommitted changes")
-	removeCmd.Flags().BoolVarP(&removeYes, "yes", "y", false, "skip confirmation prompts")
 	removeCmd.Flags().BoolVar(&removeDelBranch, "delete-branch", false, "also delete the branch(es) (refused if unmerged)")
 	removeCmd.Flags().BoolVar(&removeForceBranch, "force-delete-branch", false, "also delete the branch(es), even if unmerged")
 	removeCmd.MarkFlagsMutuallyExclusive("stash", "discard")
@@ -152,7 +150,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "%s is locked%s\n", stBold.Render(repo.WorktreeName(t)), reasonSuffix(t.LockReason))
 		}
 		switch {
-		case removeYes:
+		case yes:
 			// --yes is explicit consent to override everything, locks included.
 		case !interactive():
 			return errors.New("worktree(s) are locked: unlock first with `wt unlock`, or re-run with --yes to remove anyway")
@@ -168,7 +166,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Friction point #2: removal never touches the branch — say so up front.
-	if !removeYes {
+	if !yes {
 		if interactive() {
 			var desc string
 			if len(targets) == 1 {
@@ -224,7 +222,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Removed worktree %q (was on a detached HEAD).\n", name)
 		} else {
 			fmt.Printf("Removed worktree %q. The branch %q is still in the repository", name, t.Branch)
-			fmt.Printf(" — recreate a worktree for it anytime with %s\n", stBold.Render("wt create "+t.Branch))
+			fmt.Printf(" — recreate a worktree for it anytime with %s\n", stBold.Render("wt add "+t.Branch))
 		}
 	}
 
@@ -247,7 +245,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		deleteBranches(repo, branches, true)
 	case removeDelBranch:
 		deleteBranches(repo, branches, false)
-	case interactive() && !removeYes:
+	case interactive() && !yes:
 		title := fmt.Sprintf("Also delete the branch %q?", branches[0])
 		if len(branches) > 1 {
 			title = fmt.Sprintf("Also delete %d branches (%s)?", len(branches), strings.Join(branches, ", "))

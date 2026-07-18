@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var pruneYes bool
-
 var pruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Remove stale worktree entries (directories deleted manually)",
@@ -23,10 +21,6 @@ never affected.
 This is also offered as part of ` + "`wt doctor`" + `.`,
 	Args: cobra.NoArgs,
 	RunE: runPrune,
-}
-
-func init() {
-	pruneCmd.Flags().BoolVarP(&pruneYes, "yes", "y", false, "skip the confirmation prompt")
 }
 
 func runPrune(cmd *cobra.Command, args []string) error {
@@ -50,7 +44,7 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "    %s\n", w.Path)
 	}
 
-	if !pruneYes {
+	if !yes {
 		switch {
 		case interactive():
 			ok, err := confirm("Prune stale entries?", "Runs `git worktree prune`. Branches are not affected.", true)
