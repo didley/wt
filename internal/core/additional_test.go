@@ -298,7 +298,13 @@ func TestUniquePathCollisions(t *testing.T) {
 }
 
 func TestResolvePath(t *testing.T) {
-	dir := t.TempDir()
+	// On macOS, t.TempDir() lives under /var/folders/..., itself a symlink
+	// to /private/var/folders/...; resolvePath resolves symlinks, so the
+	// expected paths must be resolved the same way to match.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	existing := filepath.Join(dir, "real")
 	if err := os.MkdirAll(existing, 0o755); err != nil {
 		t.Fatal(err)
