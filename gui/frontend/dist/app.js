@@ -233,9 +233,11 @@ function card(wt, expand) {
   if (wt.isMain) row.appendChild(badge("main checkout", "main"));
   if (wt.stray) row.appendChild(badge("outside .worktrees", "stray"));
   if (wt.locked) {
-    const lockBadge = badge("locked", "locked");
-    if (wt.lockReason) lockBadge.title = wt.lockReason;
-    row.appendChild(lockBadge);
+    row.appendChild(
+      wt.lockReason
+        ? badgeButton("locked ⓘ", "locked has-reason", wt.lockReason, () => toast(wt.lockReason, false))
+        : badge("locked", "locked")
+    );
   }
 
   const branch = document.createElement("span");
@@ -308,6 +310,19 @@ function badge(text, cls) {
   const b = document.createElement("span");
   b.className = "badge " + cls;
   b.textContent = text;
+  return b;
+}
+
+// A badge that's a real, clickable/pressable control — for badges that
+// carry more info than fits in the label (e.g. a lock reason), so that
+// info isn't only reachable by hovering a title tooltip.
+function badgeButton(text, cls, title, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "badge " + cls;
+  b.textContent = text;
+  b.title = title;
+  b.addEventListener("click", onClick);
   return b;
 }
 
