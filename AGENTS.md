@@ -35,6 +35,15 @@ Use `just <recipe>` (see `Justfile`; `just --list` to enumerate). Key ones:
 
 Run `just check` and `just lint` before opening a PR for review.
 
+## GUI frontend
+
+`gui/frontend/dist/` is plain embedded HTML/CSS/JS — no node toolchain, no
+build step. The app sets `user-select: none` on `body`, so any new text a
+user might want to copy (paths, names, branches, IDs, etc.) needs the
+`user-selectable` class added explicitly, listed **first** in the class
+list (e.g. `class="user-selectable mono"`, `el.className = "user-selectable
+wt-name"`).
+
 ## Structure
 
 - `cmd/wt` — CLI entrypoint.

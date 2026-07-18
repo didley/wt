@@ -32,8 +32,8 @@
       <div id="repo-view" hidden>
         <header id="repo-header">
           <div>
-            <h1 id="repo-name"></h1>
-            <p id="repo-path" class="muted"></p>
+            <h1 id="repo-name" class="user-selectable"></h1>
+            <p id="repo-path" class="user-selectable muted"></p>
           </div>
           <button id="new-worktree" class="btn primary">New worktree</button>
         </header>
@@ -41,7 +41,7 @@
         <div id="stray-banner" class="banner" hidden>
           <div>
             <strong id="stray-text"></strong>
-            <p class="muted">wt keeps all worktrees in <span id="stray-dir" class="mono"></span> so they're easy to find. Moving them is safe: git updates its bookkeeping for you.</p>
+            <p class="muted">wt keeps all worktrees in <span id="stray-dir" class="user-selectable mono"></span> so they're easy to find. Moving them is safe: git updates its bookkeeping for you.</p>
           </div>
           <button id="move-strays" class="btn warn">Move them into place</button>
         </div>
@@ -95,7 +95,7 @@
   <!-- Lock -->
   <dialog id="dlg-lock">
     <form method="dialog">
-      <h2>Lock worktree <span id="lock-name" class="mono"></span></h2>
+      <h2>Lock worktree <span id="lock-name" class="user-selectable mono"></span></h2>
       <p class="muted small">Locking protects it from <code>wt remove</code> and <code>wt prune</code> (and their git equivalents) until you unlock it. It never affects the branch or its commits.</p>
       <label>Reason <span class="muted small">(optional)</span>
         <input id="lock-reason" placeholder="e.g. reviewing, on a USB drive" autocomplete="off" />
@@ -110,7 +110,7 @@
   <!-- Remove -->
   <dialog id="dlg-remove">
     <form method="dialog">
-      <h2>Remove worktree <span id="remove-name" class="mono"></span>?</h2>
+      <h2>Remove worktree <span id="remove-name" class="user-selectable mono"></span>?</h2>
       <p id="remove-branch-note" class="notice"></p>
 
       <div id="remove-locked" hidden>
@@ -130,7 +130,7 @@
 
       <div id="remove-branch-opts">
         <label class="check"><input type="checkbox" id="remove-del-branch" />
-          <span>Also delete the branch <span id="remove-branch2" class="mono"></span> <span class="muted">(usually you keep it — the worktree removal already freed the checkout)</span></span></label>
+          <span>Also delete the branch <span id="remove-branch2" class="user-selectable mono"></span> <span class="muted">(usually you keep it — the worktree removal already freed the checkout)</span></span></label>
         <label class="check indent" id="remove-force-wrap" hidden><input type="checkbox" id="remove-force-branch" />
           <span>Even if it has unmerged commits <strong class="danger">(they will be lost)</strong></span></label>
       </div>
@@ -181,12 +181,12 @@
   <!-- Rename -->
   <dialog id="dlg-rename">
     <form method="dialog">
-      <h2>Rename worktree <span id="rename-old" class="mono"></span></h2>
+      <h2>Rename worktree <span id="rename-old" class="user-selectable mono"></span></h2>
       <label>New name
         <input id="rename-new" autocomplete="off" required />
       </label>
       <label class="check"><input type="checkbox" id="rename-branch-too" />
-        <span>Also rename the branch <span id="rename-branch-name" class="mono"></span> <span class="muted">(off: only the directory changes)</span></span></label>
+        <span>Also rename the branch <span id="rename-branch-name" class="user-selectable mono"></span> <span class="muted">(off: only the directory changes)</span></span></label>
       <footer>
         <button value="cancel" class="btn">Cancel</button>
         <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
@@ -199,7 +199,7 @@
     <form method="dialog">
       <h2>wt</h2>
       <p class="about-section-title">Version</p>
-      <p id="about-version" class="mono"></p>
+      <p id="about-version" class="user-selectable mono"></p>
       <p class="about-section-title">Command line</p>
       <div id="about-cli-mac" class="notice" hidden>
         <p>This app and the <code>wt</code> command-line tool share the same core.</p>
