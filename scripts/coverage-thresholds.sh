@@ -2,6 +2,6 @@
 # both `just test`/`testGui` and CI so the numbers never drift apart.
 # Source this file (`source scripts/coverage-thresholds.sh`) rather than
 # hardcoding thresholds elsewhere.
-CORE_COVERAGE_MIN=75
-CLI_COVERAGE_MIN=30
-GUI_COVERAGE_MIN=8
+CORE_COVERAGE_MIN=90
+CLI_COVERAGE_MIN=70
+GUI_COVERAGE_MIN=25
