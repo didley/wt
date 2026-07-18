@@ -215,7 +215,12 @@
         </select>
       </label>
       <p id="open-target-linux-note" class="muted small" hidden>
-        Editors are launched via <code>flatpak-spawn --host</code>, so they run with your host system's PATH, not the sandbox's.
+        Editors are launched via <code>flatpak-spawn --host</code>, so they run with your host system's PATH, not the
+        sandbox's. This only finds editors installed as a normal host binary (a distro package, an official install
+        script, etc). If your editor is itself installed as a Flatpak (e.g. from Flathub), it won't be on that PATH —
+        pick <strong>Custom command…</strong> below instead and use its Flatpak app ID, e.g.
+        <code>flatpak run dev.zed.Zed {path}</code> for Zed or <code>flatpak run com.visualstudio.code {path}</code>
+        for VS Code.
       </p>
       <label id="open-target-custom-label">Custom command
         <input id="open-target-custom" placeholder="code {path}" autocomplete="off" />
