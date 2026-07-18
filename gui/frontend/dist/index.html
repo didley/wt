@@ -73,7 +73,7 @@
   </div>
 
   <!-- Create -->
-  <dialog id="dlg-create">
+  <dialog id="dlg-create" tabindex="-1">
     <form method="dialog">
       <h2>New worktree(s)</h2>
       <label>Branch(es)
@@ -89,14 +89,14 @@
         <span class="muted small">The commit new branches start from. Ignored for existing branches.</span>
       </label>
       <footer>
-        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
+        <button value="cancel" class="btn">Cancel</button>
         <button id="create-confirm" value="ok" class="btn primary">Create worktree(s)</button>
       </footer>
     </form>
   </dialog>
 
   <!-- Lock -->
-  <dialog id="dlg-lock">
+  <dialog id="dlg-lock" tabindex="-1">
     <form method="dialog">
       <h2>Lock worktree <span id="lock-name" class="user-selectable mono"></span></h2>
       <p class="muted small">Locking protects it from <code>wt remove</code> and <code>wt prune</code> (and their git equivalents) until you unlock it. It never affects the branch or its commits.</p>
@@ -104,14 +104,14 @@
         <input id="lock-reason" placeholder="e.g. reviewing, on a USB drive" autocomplete="off" />
       </label>
       <footer>
-        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
+        <button value="cancel" class="btn">Cancel</button>
         <button id="lock-confirm" value="ok" class="btn primary">Lock</button>
       </footer>
     </form>
   </dialog>
 
   <!-- Remove -->
-  <dialog id="dlg-remove">
+  <dialog id="dlg-remove" tabindex="-1">
     <form method="dialog">
       <h2>Remove worktree <span id="remove-name" class="user-selectable mono"></span>?</h2>
       <p id="remove-branch-note" class="notice"></p>
@@ -139,14 +139,14 @@
       </div>
 
       <footer>
-        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
+        <button value="cancel" class="btn">Cancel</button>
         <button id="remove-confirm" value="ok" class="btn danger">Remove worktree</button>
       </footer>
     </form>
   </dialog>
 
   <!-- Remove (bulk) -->
-  <dialog id="dlg-remove-bulk">
+  <dialog id="dlg-remove-bulk" tabindex="-1">
     <form method="dialog">
       <h2>Remove <span id="remove-bulk-count"></span> worktrees?</h2>
       <ul id="remove-bulk-list" class="changes"></ul>
@@ -175,14 +175,14 @@
       </div>
 
       <footer>
-        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
+        <button value="cancel" class="btn">Cancel</button>
         <button id="remove-bulk-confirm" value="ok" class="btn danger">Remove worktrees</button>
       </footer>
     </form>
   </dialog>
 
   <!-- Rename -->
-  <dialog id="dlg-rename">
+  <dialog id="dlg-rename" tabindex="-1">
     <form method="dialog">
       <h2>Rename worktree <span id="rename-old" class="user-selectable mono"></span></h2>
       <label>New name
@@ -191,7 +191,7 @@
       <label class="check"><input type="checkbox" id="rename-branch-too" />
         <span>Also rename the branch <span id="rename-branch-name" class="user-selectable mono"></span> <span class="muted">(off: only the directory changes)</span></span></label>
       <footer>
-        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
+        <button value="cancel" class="btn">Cancel</button>
         <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
       </footer>
     </form>

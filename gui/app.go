@@ -755,4 +755,7 @@ func (a *App) rememberRepo(path string) {
 }
 
 // startup is Wails' lifecycle hook, called once the app window is ready.
-func (a *App) startup(ctx context.Context) { a.ctx = ctx }
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+	disableWebviewZoom()
+}

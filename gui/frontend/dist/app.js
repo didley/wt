@@ -344,6 +344,43 @@ function btn(label, onClick) {
   return b;
 }
 
+// showModal() auto-focuses the dialog's first focusable descendant (often a
+// checkbox or link), drawing an unsolicited focus ring. Move focus to the
+// dialog itself (tabindex="-1" in the HTML) instead, so nothing starts
+// selected — keyboard users can still Tab in from there.
+function openDialog(dlg) {
+  dlg.showModal();
+  dlg.focus();
+}
+
+// Every <dialog><form method="dialog"> button is type=submit by default,
+// which causes two footguns for every dialog, present and future, unless
+// each one remembers to opt out by hand:
+//  1. A "Cancel" button also runs native form validation before closing —
+//     fixed generically by giving any value="cancel" button formNoValidate.
+//  2. A `required` field inside a conditionally-hidden container (e.g. a
+//     "confirm removal of a locked item" checkbox) still blocks
+//     submission even while invisible — only an element's own `hidden`
+//     state exempts it from constraint validation, not an ancestor's
+//     `display: none`. Fixed generically by syncing `required` to actual
+//     visibility right before the browser validates, so a hidden field
+//     can never block a dialog it isn't even shown in.
+// This runs for every dialog automatically; a new dialog gets both fixes
+// for free without wiring anything itself.
+document.addEventListener(
+  "click",
+  (ev) => {
+    const btn = ev.target.closest("dialog form button");
+    if (!btn) return;
+    if (btn.value === "cancel") btn.formNoValidate = true;
+    if (btn.formNoValidate) return;
+    for (const el of btn.form.querySelectorAll("[required]")) {
+      el.required = el.offsetParent !== null;
+    }
+  },
+  true
+);
+
 // ---------- create dialog ----------
 
 function openCreateDialog() {
@@ -367,7 +404,7 @@ function openCreateDialog() {
       );
     }
   };
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // One branch per line, trimmed, blanks dropped.
@@ -430,7 +467,7 @@ function openLockDialog(wt) {
     const reason = $("lock-reason").value.trim();
     await action(() => api().LockWorktree(repo.mainPath, wt.path, reason), "Locking worktree…");
   };
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // ---------- remove dialog ----------
@@ -484,7 +521,7 @@ function openRemoveDialog(wt) {
     const forceLocked = wt.locked && $("remove-force-locked").checked;
     await action(() => api().RemoveWorktree(repo.mainPath, wt.path, act, del, force, forceLocked), "Removing worktree…");
   };
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // ---------- remove (bulk) dialog ----------
@@ -559,7 +596,7 @@ function openRemoveBulkDialog() {
     await action(() => api().RemoveWorktrees(repo.mainPath, paths, act, del, force, forceLocked), label);
     selected.clear();
   };
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // ---------- rename dialog ----------
@@ -581,7 +618,7 @@ function openRenameDialog(wt) {
     const renameBranch = hasBranch && $("rename-branch-too").checked;
     await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch), "Renaming worktree…");
   };
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // ---------- about dialog ----------
@@ -591,7 +628,7 @@ function openAboutDialog() {
   $("about-version").textContent = appVersion === "dev" ? "dev build" : `v${appVersion}`;
   $("about-cli-mac").hidden = appOS !== "darwin";
   $("about-cli-linux").hidden = appOS === "darwin";
-  dlg.showModal();
+  openDialog(dlg);
 }
 
 // ---------- toasts ----------
