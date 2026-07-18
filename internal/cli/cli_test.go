@@ -16,6 +16,7 @@ const (
 	testBranchLock      = "feature-lock"
 	testBranchLockSlash = "feature/lock"
 	testNameNope        = "nope" // a name that never resolves to a worktree
+	testMissingPath     = "/does/not/exist"
 )
 
 // newTestRepo creates a real git repo named my-app in a temp dir with one

@@ -51,22 +51,24 @@ _guiCmd mode *args:
 test:
     #!/usr/bin/env bash
     set -euo pipefail
+    source scripts/coverage-thresholds.sh
     dir="$(mktemp -d)"
     trap 'rm -rf "$dir"' EXIT
     go test -coverprofile="$dir/core.out" ./internal/core/...
     go test -coverprofile="$dir/cli.out" ./internal/cli/...
     go test ./cmd/...
-    ./scripts/check-coverage.sh "$dir/core.out" 75 "internal/core"
-    ./scripts/check-coverage.sh "$dir/cli.out" 30 "internal/cli"
+    ./scripts/check-coverage.sh "$dir/core.out" "$CORE_COVERAGE_MIN" "internal/core"
+    ./scripts/check-coverage.sh "$dir/cli.out" "$CLI_COVERAGE_MIN" "internal/cli"
 
 # Run the GUI module's test suite and enforce its coverage minimum.
 testGui:
     #!/usr/bin/env bash
     set -euo pipefail
+    source scripts/coverage-thresholds.sh
     dir="$(mktemp -d)"
     trap 'rm -rf "$dir"' EXIT
     go -C gui test -coverprofile="$dir/gui.out" ./...
-    ./scripts/check-coverage.sh "$dir/gui.out" 8 "gui" gui
+    ./scripts/check-coverage.sh "$dir/gui.out" "$GUI_COVERAGE_MIN" "gui" gui
 
 # Run go vet over both modules.
 vet:
