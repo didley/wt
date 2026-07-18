@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -212,6 +213,45 @@ func TestLockUnlockWorktree(t *testing.T) {
 	}
 	if err := repo.RemoveWorktree(path2, false); err != nil {
 		t.Fatalf("RemoveWorktree on unlocked worktree: %v", err)
+	}
+}
+
+func TestWorktreesOrdering(t *testing.T) {
+	repo := newTestRepo(t)
+	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Created in order alpha, bravo, charlie; bravo gets locked after the
+	// fact. Expected display order is main, then locked (bravo), then the
+	// rest in their original order (alpha, charlie).
+	for _, name := range []string{"alpha", "bravo", "charlie"} {
+		path := repo.ConventionalPath(name)
+		if err := repo.AddWorktree(path, "feature/"+name, "main", true); err != nil {
+			t.Fatalf("AddWorktree(%s): %v", name, err)
+		}
+	}
+	if err := repo.LockWorktree(repo.ConventionalPath("bravo"), "keep me around"); err != nil {
+		t.Fatalf("LockWorktree: %v", err)
+	}
+
+	wts, err := repo.Worktrees()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotNames []string
+	for _, w := range wts {
+		gotNames = append(gotNames, repo.WorktreeName(w))
+	}
+	wantNames := []string{repo.Name(), "bravo", "alpha", "charlie"}
+	if !slices.Equal(gotNames, wantNames) {
+		t.Errorf("Worktrees() order = %v, want %v", gotNames, wantNames)
+	}
+	if !wts[0].IsMain {
+		t.Errorf("first entry is not main: %+v", wts[0])
+	}
+	if !wts[1].Locked {
+		t.Errorf("second entry is not locked: %+v", wts[1])
 	}
 }
 

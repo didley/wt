@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -19,14 +20,34 @@ type Worktree struct {
 	Prunable   bool
 }
 
-// Worktrees lists all worktrees of the repository; the main worktree is
-// always the first entry.
+// Worktrees lists all worktrees of the repository, ordered main first,
+// then locked worktrees, then the rest (each group keeping git's order).
 func (r *Repo) Worktrees() ([]Worktree, error) {
 	out, err := Git(r.MainPath, "worktree", "list", "--porcelain")
 	if err != nil {
 		return nil, err
 	}
-	return parseWorktreeList(out), nil
+	wts := parseWorktreeList(out)
+	sortWorktrees(wts)
+	return wts, nil
+}
+
+// sortWorktrees orders wts main first, then locked worktrees, then the
+// rest, stably preserving git's relative order within each group.
+func sortWorktrees(wts []Worktree) {
+	rank := func(w Worktree) int {
+		switch {
+		case w.IsMain:
+			return 0
+		case w.Locked:
+			return 1
+		default:
+			return 2
+		}
+	}
+	sort.SliceStable(wts, func(i, j int) bool {
+		return rank(wts[i]) < rank(wts[j])
+	})
 }
 
 func parseWorktreeList(out string) []Worktree {
