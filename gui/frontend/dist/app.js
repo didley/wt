@@ -26,6 +26,12 @@ function openTargetLabel() {
   return OPEN_TARGET_LABELS[openTarget.target] ?? "File manager";
 }
 
+// Keeps the sidebar settings button's own label ("Open in …") in sync, so
+// the current target is visible without opening the dialog.
+function updateSettingsButtonLabel() {
+  $("settings-btn-label").textContent = `Open in ${openTargetLabel()}`;
+}
+
 // ---------- boot ----------
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -41,6 +47,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch {
     // leave the default (file manager)
   }
+  updateSettingsButtonLabel();
   try {
     recents = await api().RecentRepos();
     renderRecents();
@@ -633,6 +640,7 @@ async function openSettingsDialog() {
     try {
       await api().SetOpenTarget(newTarget, newCustomCmd);
       openTarget = { target: newTarget, customOpenCmd: newCustomCmd };
+      updateSettingsButtonLabel();
       if (repo) renderRepo();
     } catch (e) {
       toast(String(e), true);

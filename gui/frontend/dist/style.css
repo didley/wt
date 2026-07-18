@@ -85,8 +85,9 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 /* Labeled, not icon-only, so its purpose is legible without a hover
    tooltip — unlike the "i" info button, "Settings" isn't a universally
    recognized glyph on its own. */
-.settings-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.settings-btn .gear { font-style: normal; }
+.settings-btn { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.settings-btn .gear { font-style: normal; flex-shrink: 0; }
+.settings-btn #settings-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent {
   display: flex; align-items: center; gap: 6px;
   width: 100%; padding: 8px 10px; margin: 2px 0;

@@ -819,12 +819,38 @@ func (a *App) openWithFileManager(path string) error {
 	return nil
 }
 
+// hostCommand builds a command that runs name with args either directly or,
+// inside the GUI's Flatpak sandbox, via flatpak-spawn --host: a sandboxed
+// process has its own PATH and can't see host-installed editors like code
+// or zed on its own, the same reason Git delegates to the host (see
+// core.Git).
+func (a *App) hostCommand(name string, args ...string) *exec.Cmd {
+	if os.Getenv("FLATPAK_ID") != "" {
+		hostArgs := append([]string{"--host", name}, args...)
+		//nolint:gosec // hostArgs are wt-constructed, not shell-interpreted
+		return exec.CommandContext(a.ctx, "flatpak-spawn", hostArgs...)
+	}
+	//nolint:gosec // name is a fixed editor name or a user-authored local command
+	return exec.CommandContext(a.ctx, name, args...)
+}
+
+// binOnPath reports whether bin resolves on the PATH the editor would
+// actually run under: the host's PATH (checked via flatpak-spawn --host
+// which) inside the sandbox, exec.LookPath otherwise.
+func (a *App) binOnPath(bin string) bool {
+	if os.Getenv("FLATPAK_ID") != "" {
+		//nolint:gosec // bin is not shell-interpreted
+		return exec.CommandContext(a.ctx, "flatpak-spawn", "--host", "which", bin).Run() == nil
+	}
+	_, err := exec.LookPath(bin)
+	return err == nil
+}
+
 func (a *App) openWithBinary(bin, path string) error {
-	if _, err := exec.LookPath(bin); err != nil {
+	if !a.binOnPath(bin) {
 		return fmt.Errorf("%s: %w", bin, errBinNotOnPath)
 	}
-	cmd := exec.CommandContext(a.ctx, bin, path) //nolint:gosec // bin is one of a fixed set of known editor names
-	if err := cmd.Start(); err != nil {
+	if err := a.hostCommand(bin, path).Start(); err != nil {
 		return fmt.Errorf("opening %s with %s: %w", path, bin, err)
 	}
 	return nil
@@ -848,11 +874,10 @@ func (a *App) openWithCustomCommand(template, path string) error {
 	if len(args) == 0 {
 		return errCustomCmdEmpty
 	}
-	if _, err := exec.LookPath(args[0]); err != nil {
+	if !a.binOnPath(args[0]) {
 		return fmt.Errorf("%s: %w", args[0], errBinNotOnPath)
 	}
-	cmd := exec.CommandContext(a.ctx, args[0], args[1:]...) //nolint:gosec // user-authored local command
-	if err := cmd.Start(); err != nil {
+	if err := a.hostCommand(args[0], args[1:]...).Start(); err != nil {
 		return fmt.Errorf("opening %s: %w", path, err)
 	}
 	return nil
