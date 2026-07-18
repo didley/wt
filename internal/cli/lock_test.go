@@ -72,3 +72,24 @@ func TestRunLockNoCandidates(t *testing.T) {
 		t.Fatal("runLock with no worktrees and no args: want error, got nil")
 	}
 }
+
+func TestRunLockNoArgsNonInteractive(t *testing.T) {
+	withYes(t)
+	newTestRepo(t)
+	if err := runAdd(addCmd, []string{"feature/nolockarg"}); err != nil {
+		t.Fatalf("runAdd: %v", err)
+	}
+	yes = false
+	if err := runLock(lockCmd, nil); err == nil {
+		t.Fatal("runLock with candidates but no args, non-interactive: want error, got nil")
+	}
+}
+
+func TestReasonSuffixEmpty(t *testing.T) {
+	if got := reasonSuffix(""); got != "" {
+		t.Errorf("reasonSuffix(\"\") = %q, want empty", got)
+	}
+	if got := reasonSuffix("wip"); got != " (wip)" {
+		t.Errorf("reasonSuffix(\"wip\") = %q, want %q", got, " (wip)")
+	}
+}

@@ -77,6 +77,20 @@ func TestDiscoverNotARepo(t *testing.T) {
 	}
 }
 
+func TestMoveViolationsErrorReported(t *testing.T) {
+	repo := newTestRepo(t)
+	vs := []core.Violation{
+		{
+			Worktree: core.Worktree{Path: testMissingPath},
+			Target:   filepath.Join(repo.WorktreesDir(), "wherever"),
+		},
+	}
+	out := captureStderr(t, func() { moveViolations(repo, vs, false) })
+	if !contains(out, "could not move") {
+		t.Errorf("moveViolations on a non-worktree path: want a \"could not move\" warning, got %q", out)
+	}
+}
+
 func TestDiscoverBare(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)

@@ -24,11 +24,12 @@ jobs:
       - run: go vet ./...
       - name: test + coverage gate
         run: |
+          source scripts/coverage-thresholds.sh
           go test -coverprofile=core.out ./internal/core/...
           go test -coverprofile=cli.out ./internal/cli/...
           go test ./cmd/...
-          ./scripts/check-coverage.sh core.out 75 "internal/core"
-          ./scripts/check-coverage.sh cli.out 30 "internal/cli"
+          ./scripts/check-coverage.sh core.out "$CORE_COVERAGE_MIN" "internal/core"
+          ./scripts/check-coverage.sh cli.out "$CLI_COVERAGE_MIN" "internal/cli"
 
   lint:
     runs-on: ubuntu-latest
@@ -71,5 +72,6 @@ jobs:
       - name: test + coverage gate
         working-directory: gui
         run: |
+          source ../scripts/coverage-thresholds.sh
           go test -tags ${{ matrix.tags }} -coverprofile=gui.out ./...
-          ../scripts/check-coverage.sh gui.out 8 "gui" .
+          ../scripts/check-coverage.sh gui.out "$GUI_COVERAGE_MIN" "gui" .
