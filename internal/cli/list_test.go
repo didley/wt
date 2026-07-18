@@ -121,7 +121,7 @@ func TestDirLabelIncludesLockReason(t *testing.T) {
 		{
 			"locked, with reason",
 			listRow{dir: testWorktreeName, wt: core.Worktree{Locked: true, LockReason: "wip"}},
-			testWorktreeName + lockedMarker + " (wip)",
+			testWorktreeName + lockedMarker + " (reason: wip)",
 		},
 	}
 	for _, tc := range cases {

@@ -196,7 +196,7 @@ func nameLabel(r listRow) string {
 func dirLabel(r listRow) string {
 	suffix := markerSuffix(r)
 	if r.wt.Locked && r.wt.LockReason != "" {
-		suffix += " (" + r.wt.LockReason + ")"
+		suffix += " (reason: " + r.wt.LockReason + ")"
 	}
 	return r.dir + suffix
 }
