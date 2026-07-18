@@ -12,20 +12,7 @@ let appOS = "linux";
 
 // ---------- boot ----------
 
-// This is a desktop app window, not a web page — ctrl/cmd-scroll, ctrl/cmd
-// +/-/0, and trackpad pinch gestures would zoom the page with no way to
-// reset it, so block them all.
-function disableZoom() {
-  window.addEventListener("wheel", (ev) => { if (ev.ctrlKey) ev.preventDefault(); }, { passive: false });
-  window.addEventListener("keydown", (ev) => {
-    if ((ev.ctrlKey || ev.metaKey) && ["=", "-", "+", "0"].includes(ev.key)) ev.preventDefault();
-  });
-  document.addEventListener("gesturestart", (ev) => ev.preventDefault());
-  document.addEventListener("gesturechange", (ev) => ev.preventDefault());
-}
-
 window.addEventListener("DOMContentLoaded", async () => {
-  disableZoom();
   wireStaticHandlers();
   try {
     appVersion = await api().Version();
