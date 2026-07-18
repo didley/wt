@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"unicode/utf8"
@@ -10,9 +11,17 @@ import (
 )
 
 var (
-	listPorcelain bool
-	listVerbose   bool
+	listPorcelainVersion string
+	listVerbose          bool
 )
+
+// porcelainV1 is the only supported --porcelain output version so far.
+// Requiring the version (bare --porcelain defaults to it via NoOptDefVal)
+// means the column set can change again behind a new version without
+// silently breaking scripts pinned to v1.
+const porcelainV1 = "v1"
+
+var errUnsupportedPorcelainVersion = errors.New("unsupported --porcelain version")
 
 // strayMarker flags a stray (out-of-convention) worktree's name/dir column,
 // and prefixes the footer hint that explains it — a footnote-style marker
@@ -38,7 +47,9 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().BoolVar(&listPorcelain, "porcelain", false, "stable tab-separated output for scripts")
+	listCmd.Flags().StringVar(&listPorcelainVersion, "porcelain",
+		"", "stable tab-separated output for scripts, versioned (default "+porcelainV1+")")
+	listCmd.Flags().Lookup("porcelain").NoOptDefVal = porcelainV1
 	listCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp)
 	rootCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp+" (same as `wt list -v`)")
 }
@@ -76,7 +87,10 @@ func runList() error {
 
 	rows := buildListRows(repo, wts)
 
-	if listPorcelain {
+	if listPorcelainVersion != "" {
+		if listPorcelainVersion != porcelainV1 {
+			return fmt.Errorf("%w %q (supported: %s)", errUnsupportedPorcelainVersion, listPorcelainVersion, porcelainV1)
+		}
 		printPorcelain(rows)
 		return nil
 	}
@@ -132,6 +146,9 @@ func setRowState(row *listRow, w core.Worktree) {
 	row.dirty = len(changes) > 0
 }
 
+// printPorcelain is the --porcelain=v1 format: path, name, branch,
+// main|linked|stray, state, locked|unlocked[:reason], head — tab-separated.
+// Changing this column set requires bumping porcelainV1 to a new version.
 func printPorcelain(rows []listRow) {
 	for _, r := range rows {
 		kind := "linked"

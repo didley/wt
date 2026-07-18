@@ -12,7 +12,7 @@ func TestRunListPlain(t *testing.T) {
 	if err := runAdd(addCmd, []string{"feature/list"}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
-	listPorcelain = false
+	listPorcelainVersion = ""
 	if err := runList(); err != nil {
 		t.Fatalf("runList: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestRunListVerbose(t *testing.T) {
 	if err := runAdd(addCmd, []string{"feature/verbose"}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
-	listPorcelain = false
+	listPorcelainVersion = ""
 	if err := runList(); err != nil {
 		t.Fatalf("runList: %v", err)
 	}
@@ -46,10 +46,33 @@ func TestRunListPorcelain(t *testing.T) {
 	if err := runAdd(addCmd, []string{"feature/porc"}); err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
-	listPorcelain = true
-	t.Cleanup(func() { listPorcelain = false })
+	listPorcelainVersion = porcelainV1
+	t.Cleanup(func() { listPorcelainVersion = "" })
 	if err := runList(); err != nil {
 		t.Fatalf("runList: %v", err)
+	}
+}
+
+func TestPorcelainFlagBareDefaultsToV1(t *testing.T) {
+	t.Cleanup(func() {
+		listPorcelainVersion = ""
+		_ = listCmd.Flags().Set("porcelain", "")
+	})
+	if err := listCmd.Flags().Parse([]string{"--porcelain"}); err != nil {
+		t.Fatalf("parsing bare --porcelain: %v", err)
+	}
+	if listPorcelainVersion != porcelainV1 {
+		t.Errorf("bare --porcelain = %q, want %q", listPorcelainVersion, porcelainV1)
+	}
+}
+
+func TestRunListPorcelainUnsupportedVersion(t *testing.T) {
+	withYes(t)
+	newTestRepo(t)
+	listPorcelainVersion = "v2"
+	t.Cleanup(func() { listPorcelainVersion = "" })
+	if err := runList(); err == nil {
+		t.Fatal("runList with --porcelain=v2: want error, got nil")
 	}
 }
 
@@ -116,12 +139,12 @@ func TestRunListDetachedWorktree(t *testing.T) {
 	detachedPath := repo.MainPath + ".worktrees/detached"
 	mustGit(t, repo.MainPath, "worktree", "add", "--detach", detachedPath, head)
 
-	listPorcelain = false
+	listPorcelainVersion = ""
 	if err := runList(); err != nil {
 		t.Fatalf("runList: %v", err)
 	}
-	listPorcelain = true
-	t.Cleanup(func() { listPorcelain = false })
+	listPorcelainVersion = porcelainV1
+	t.Cleanup(func() { listPorcelainVersion = "" })
 	if err := runList(); err != nil {
 		t.Fatalf("runList porcelain: %v", err)
 	}
@@ -133,7 +156,7 @@ func TestRunListStrayWorktree(t *testing.T) {
 	stray := repo.MainPath + "-stray"
 	mustGit(t, repo.MainPath, "worktree", "add", "-b", "stray/branch", stray)
 
-	listPorcelain = false
+	listPorcelainVersion = ""
 	if err := runList(); err != nil {
 		t.Fatalf("runList: %v", err)
 	}
@@ -142,8 +165,8 @@ func TestRunListStrayWorktree(t *testing.T) {
 		t.Fatalf("runList verbose: %v", err)
 	}
 	listVerbose = false
-	listPorcelain = true
-	t.Cleanup(func() { listPorcelain = false })
+	listPorcelainVersion = porcelainV1
+	t.Cleanup(func() { listPorcelainVersion = "" })
 	if err := runList(); err != nil {
 		t.Fatalf("runList porcelain: %v", err)
 	}
