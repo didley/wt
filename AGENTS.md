@@ -42,6 +42,15 @@ is designed to fit an 80-column terminal without wrapping. Keep `Short`
 command descriptions and menu labels short enough that `<name>  <Short>`
 fits on one line even for the longest command name in the tree.
 
+## GUI frontend
+
+`gui/frontend/dist/` is plain embedded HTML/CSS/JS — no node toolchain, no
+build step. The app sets `user-select: none` on `body`, so any new text a
+user might want to copy (paths, names, branches, IDs, etc.) needs the
+`user-selectable` class added explicitly, listed **first** in the class
+list (e.g. `class="user-selectable mono"`, `el.className = "user-selectable
+wt-name"`).
+
 ## Structure
 
 - `cmd/wt` — CLI entrypoint.
