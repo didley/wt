@@ -66,7 +66,7 @@ func TestMenuBarEntries(t *testing.T) {
 	cmds := menuCommands()
 	items, dispatch := menuBarEntries(cmds)
 
-	const wantExtra = 2 // "list --verbose" and "Exit"
+	const wantExtra = 3 // "list -v", "help" and "Exit"
 	if len(items) != len(cmds)+wantExtra {
 		t.Fatalf("menuBarEntries() returned %d items, want %d", len(items), len(cmds)+wantExtra)
 	}
@@ -86,19 +86,30 @@ func TestMenuBarEntries(t *testing.T) {
 		}
 	}
 
-	last, secondLast := items[len(items)-1], items[len(items)-2]
+	last := items[len(items)-1]
+	help := items[len(items)-2]
+	listVerboseItem := items[len(items)-3]
+
 	if last.name != "Exit" || dispatch["Exit"] != menuExitIdx {
 		t.Errorf("last item = %+v (dispatch %d), want Exit/%d", last, dispatch["Exit"], menuExitIdx)
 	}
-	if secondLast.name != "list --verbose" || dispatch["list --verbose"] != menuVerboseListIdx {
-		t.Errorf("second-to-last item = %+v (dispatch %d), want list --verbose/%d",
-			secondLast, dispatch["list --verbose"], menuVerboseListIdx)
-	}
-	if secondLast.description != verboseHelp {
-		t.Errorf("list --verbose description = %q, want %q", secondLast.description, verboseHelp)
-	}
 	if last.description == "" {
 		t.Error("Exit item has an empty description")
+	}
+
+	if help.name != "help" || dispatch["help"] != menuHelpIdx {
+		t.Errorf("second-to-last item = %+v (dispatch %d), want help/%d", help, dispatch["help"], menuHelpIdx)
+	}
+	if help.description == "" {
+		t.Error("help item has an empty description")
+	}
+
+	if listVerboseItem.name != "list -v" || dispatch["list -v"] != menuVerboseListIdx {
+		t.Errorf("third-to-last item = %+v (dispatch %d), want list -v/%d",
+			listVerboseItem, dispatch["list -v"], menuVerboseListIdx)
+	}
+	if listVerboseItem.description != "verbose: "+verboseHelp {
+		t.Errorf("list -v description = %q, want %q", listVerboseItem.description, "verbose: "+verboseHelp)
 	}
 }
 

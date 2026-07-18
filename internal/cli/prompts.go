@@ -84,28 +84,32 @@ func menuCommands() []*cobra.Command {
 	}
 }
 
-// menuExitIdx and menuVerboseListIdx are menuBarEntries' two synthetic
-// entries, alongside the real command indices into menuCommands().
+// menuExitIdx, menuVerboseListIdx and menuHelpIdx are menuBarEntries' three
+// synthetic entries, alongside the real command indices into
+// menuCommands().
 const (
 	menuExitIdx        = -1
 	menuVerboseListIdx = -2 // list already ran; offer its verbose form instead of listing it as its own command
+	menuHelpIdx        = -3
 )
 
 // menuBarEntries builds the "Run a command" bar's items and a name ->
 // dispatch-index map (command indices into cmds, plus the synthetic
-// menuExitIdx/menuVerboseListIdx) — split out from runMenu (which also
-// drives the interactive tea.Program) so this pure part is unit testable
-// without a real terminal.
+// menuExitIdx/menuVerboseListIdx/menuHelpIdx) — split out from runMenu
+// (which also drives the interactive tea.Program) so this pure part is
+// unit testable without a real terminal.
 func menuBarEntries(cmds []*cobra.Command) ([]menuBarItem, map[string]int) {
-	const extraEntries = 2 // "list --verbose" and "Exit"
+	const extraEntries = 3 // "list -v", "help" and "Exit"
 	items := make([]menuBarItem, 0, len(cmds)+extraEntries)
 	dispatch := make(map[string]int, len(cmds)+extraEntries)
 	for i, c := range cmds {
 		items = append(items, menuBarItem{name: c.Name(), description: c.Short})
 		dispatch[c.Name()] = i
 	}
-	items = append(items, menuBarItem{name: "list --verbose", description: verboseHelp})
-	dispatch["list --verbose"] = menuVerboseListIdx
+	items = append(items, menuBarItem{name: "list -v", description: "verbose: " + verboseHelp})
+	dispatch["list -v"] = menuVerboseListIdx
+	items = append(items, menuBarItem{name: "help", description: "Show the full `wt --help` reference"})
+	dispatch["help"] = menuHelpIdx
 	items = append(items, menuBarItem{name: "Exit", description: "Leave this menu"})
 	dispatch["Exit"] = menuExitIdx
 	return items, dispatch
@@ -134,30 +138,52 @@ func runMenu() error {
 			return err
 		}
 
-		switch idx := dispatch[name]; idx {
-		case menuExitIdx:
-			return nil
-		case menuVerboseListIdx:
-			listVerbose = true
-			if err := runList(); err != nil {
-				return err
-			}
-			fmt.Println()
-		default:
-			cmd := cmds[idx]
-			if err := cmd.RunE(cmd, nil); err != nil {
-				if errors.Is(err, errAborted) {
-					fmt.Println(stDim.Render("Cancelled — back to the menu."))
-					fmt.Println()
-					continue
-				}
-				// cmd.RunE is one of this package's own run* functions (e.g.
-				// runAdd); wrapping here would break errors.Is(err, errAborted)
-				// checks upstream.
-				return err //nolint:wrapcheck
-			}
-			fmt.Println()
+		exit, err := dispatchMenuChoice(cmds, dispatch[name])
+		if err != nil {
+			return err
 		}
+		if exit {
+			return nil
+		}
+	}
+}
+
+// dispatchMenuChoice runs whatever runMenu's bar returned idx for (one of
+// the synthetic menu*Idx constants, or a real index into cmds), reporting
+// whether the menu should exit. Split out from runMenu to keep its loop
+// body under the cyclomatic/cognitive complexity gates.
+func dispatchMenuChoice(cmds []*cobra.Command, idx int) (bool, error) {
+	switch idx {
+	case menuExitIdx:
+		return true, nil
+	case menuVerboseListIdx:
+		listVerbose = true
+		if err := runList(); err != nil {
+			return false, err
+		}
+		fmt.Println()
+		return false, nil
+	case menuHelpIdx:
+		if err := rootCmd.Help(); err != nil {
+			return false, fmt.Errorf("showing help: %w", err)
+		}
+		fmt.Println()
+		return false, nil
+	default:
+		cmd := cmds[idx]
+		if err := cmd.RunE(cmd, nil); err != nil {
+			if errors.Is(err, errAborted) {
+				fmt.Println(stDim.Render("Cancelled — back to the menu."))
+				fmt.Println()
+				return false, nil
+			}
+			// cmd.RunE is one of this package's own run* functions (e.g.
+			// runAdd); wrapping here would break errors.Is(err, errAborted)
+			// checks upstream.
+			return false, err //nolint:wrapcheck
+		}
+		fmt.Println()
+		return false, nil
 	}
 }
 

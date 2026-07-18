@@ -32,8 +32,8 @@ const strayMarker = "*"
 const shortHeadLen = 7
 
 // verboseHelp documents --verbose; shared between listCmd, rootCmd and the
-// interactive "what next?" menu's "list --verbose" option so the wording
-// only lives in one place.
+// interactive "Run a command" menu's "list -v" entry so the wording only
+// lives in one place.
 const verboseHelp = "show full paths, directory names and commit hashes"
 
 var listCmd = &cobra.Command{
