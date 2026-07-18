@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-func TestRunDoctorClean(t *testing.T) {
+func TestRunOrganizeClean(t *testing.T) {
 	withYes(t)
 	newTestRepo(t)
-	if err := runDoctor(doctorCmd, nil); err != nil {
-		t.Fatalf("runDoctor: %v", err)
+	if err := runOrganize(organizeCmd, nil); err != nil {
+		t.Fatalf("runOrganize: %v", err)
 	}
 }
 
-func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
+func TestRunOrganizeFixesStrayAndPrunable(t *testing.T) {
 	withYes(t)
-	doctorFix = true
-	t.Cleanup(func() { doctorFix = false })
+	organizeFix = true
+	t.Cleanup(func() { organizeFix = false })
 	repo := newTestRepo(t)
 
 	// A stray worktree, created outside <repo>.worktrees/.
@@ -41,8 +41,8 @@ func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := runDoctor(doctorCmd, nil); err != nil {
-		t.Fatalf("runDoctor: %v", err)
+	if err := runOrganize(organizeCmd, nil); err != nil {
+		t.Fatalf("runOrganize: %v", err)
 	}
 
 	wts, err = repo.Worktrees()
@@ -50,16 +50,16 @@ func TestRunDoctorFixesStrayAndPrunable(t *testing.T) {
 		t.Fatal(err)
 	}
 	if vs := repo.Violations(wts); len(vs) != 0 {
-		t.Errorf("violations remain after doctor --fix: %+v", vs)
+		t.Errorf("violations remain after organize --fix: %+v", vs)
 	}
 	for _, w := range wts {
 		if w.Path == gonePath {
-			t.Errorf("stale worktree %q still registered after doctor --fix", gonePath)
+			t.Errorf("stale worktree %q still registered after organize --fix", gonePath)
 		}
 	}
 }
 
-func TestRunDoctorNoFixNonInteractiveWarns(t *testing.T) {
+func TestRunOrganizeNoFixNonInteractiveWarns(t *testing.T) {
 	repo := newTestRepo(t)
 	yes = true
 	stray := repo.MainPath + "-stray2"
@@ -84,12 +84,12 @@ func TestRunDoctorNoFixNonInteractiveWarns(t *testing.T) {
 	t.Cleanup(func() { yes = false })
 
 	out := captureStderr(t, func() {
-		if err := runDoctor(doctorCmd, nil); err != nil {
-			t.Fatalf("runDoctor: %v", err)
+		if err := runOrganize(organizeCmd, nil); err != nil {
+			t.Fatalf("runOrganize: %v", err)
 		}
 	})
 	if !contains(out, "--fix") {
-		t.Errorf("runDoctor without --fix, non-interactive: want a hint to re-run with --fix, got %q", out)
+		t.Errorf("runOrganize without --fix, non-interactive: want a hint to re-run with --fix, got %q", out)
 	}
 
 	wts, err = repo.Worktrees()

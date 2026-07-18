@@ -2,13 +2,11 @@
 
 <img width="1071" height="732" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
 
-
 `wt` removes the friction from git worktrees. It ships as a **CLI** and a
-**desktop app (GUI)** built on the same core, so both enforce the same
-convention and give the same guarantees. Every worktree of a repository
-lives in **one predictable place** — a sibling directory named
-`<repo>.worktrees/` — and creating, listing, switching, renaming and
-removing worktrees is painless:
+**desktop app (GUI)** built on the same core, so both give the same
+guarantees. Every worktree of a repository lives in **one predictable
+place** — a sibling directory named `<repo>.worktrees/` — and creating,
+listing, switching, renaming and removing worktrees is painless:
 
 ```
 ~/Developer/my-app                     ← main checkout
@@ -44,10 +42,10 @@ three things routinely trip people up. `wt` is designed around them:
 
 3. **"Where even are my worktrees?"**
    A worktree is (almost) a full copy of your checkout, so `wt` shows them
-   *in relation to* the main one, and enforces that they all live in
+   *in relation to* the main one and enforces that they all live in
    `<repo>.worktrees/`. Worktrees created behind its back with raw
-   `git worktree add` are detected the next time you run `wt`, and you're
-   offered a one-keystroke move into place.
+   `git worktree add` are detected the next time you run `wt` and offered
+   a one-keystroke move into place.
 
 ## Install
 
@@ -97,36 +95,45 @@ can't do that on its own), and adds tab completion for wt's commands and
 flags. Add one line to your shell rc:
 
 ```sh
-eval "$(wt shell-init bash)"          # ~/.bashrc
-eval "$(wt shell-init zsh)"           # ~/.zshrc
-wt shell-init fish | source           # ~/.config/fish/config.fish
+eval "$(wt setup bash)"          # ~/.bashrc
+eval "$(wt setup zsh)"           # ~/.zshrc
+wt setup fish | source           # ~/.config/fish/config.fish
 ```
 
 ## CLI usage
 
-Run `wt` with no arguments to list worktrees. All commands are interactive
+Run `wt` with no arguments to list worktrees, then (in a terminal) pick
+what to do next from an interactive menu. All commands are interactive
 when run in a terminal and scriptable with flags. Pass `-y`/`--yes`
 (available on every command) to skip confirmation prompts and fail instead
 of prompting for missing input — the flag to use in scripts and CI.
 
-### `wt add [branch]`
+### `wt add [branch...]`
 
-Create a worktree under `<repo>.worktrees/`.
+Create one or more worktrees under `<repo>.worktrees/`.
 
-- `wt add` — interactive: new branch (name + base ref) or an existing
-  branch that has no worktree yet.
+- `wt add` — interactive: a new branch (name + base ref), or one or more
+  existing branches that have no worktree yet.
 - `wt add fix-login` — non-interactive. If the branch exists it's checked
   out into the worktree; otherwise it's created from the repo's default
   branch (override with `--from <ref>`).
+- `wt add fix-login fix-signup` — creates a worktree for each; a failure on
+  one (e.g. an already-checked-out branch) doesn't stop the rest.
 
 Branch names containing `/` get flattened directory names:
 `feature/search` lives at `my-app.worktrees/feature-search`.
 
 ### `wt list` (alias: `ls`)
 
-Show all worktrees relative to the main checkout with their branch, dirty
-state, and lock state. `--porcelain` prints stable tab-separated output for
-scripts: `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]`.
+Show all worktrees with their branch, lock, and dirty state as a `NAME
+BRANCH  LOCK  STATE` table (a locked worktree shows 🔒 in the LOCK column;
+its reason is only shown with `--verbose`, since reasons can be long).
+Worktrees living outside `<repo>.worktrees/` are flagged with a trailing
+`*` and a `wt organize` hint. `--verbose`/`-v` adds full paths, directory
+names and commit hashes. `--porcelain` prints stable, versioned
+tab-separated output for scripts (bare `--porcelain` is shorthand for
+`--porcelain=v1`; only `v1` exists so far):
+`path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]<TAB>head`.
 
 ### `wt switch [worktree]` (alias: `cd`)
 
@@ -169,7 +176,7 @@ commits. `--reason "<text>"` records why; it shows up in `wt list` and
 Rename the worktree directory. The branch keeps its name unless you pass
 `--branch`.
 
-### `wt doctor`
+### `wt organize`
 
 Health-check the convention:
 
@@ -181,7 +188,7 @@ The same check also runs automatically before every `wt` command, so
 worktrees created with raw `git worktree add` are caught the next time you
 use `wt` — no background watcher needed.
 
-### `wt shell-init <bash|zsh|fish>`
+### `wt setup <bash|zsh|fish>`
 
 Print the shell wrapper function and tab completions (see
 [Shell integration](#shell-integration-recommended)). Run it directly in a
@@ -227,11 +234,6 @@ notice next time it runs and offer to move it.
 Not supported (yet): the `.worktrees` convention anchors on a main
 checkout.
 
-## Roadmap
-
-- Flathub listing for the GUI (vendored go modules + screenshots; until
-  then each release ships an installable `wt.flatpak` bundle)
-
 ## Development
 
 Tasks are run with [just](https://just.systems)
@@ -240,11 +242,12 @@ Tasks are run with [just](https://just.systems)
 ```sh
 just --list      # list all recipes
 just build       # CLI -> ./wt
-just runCli -h  # run the CLI via `go run`, forwarding any args
+just runCli -h   # run the CLI via `go run`, forwarding any args
 just gui         # desktop app -> gui/wt-gui (needs GTK3/WebKitGTK
                   # headers on Linux; on Fedora Atomic run inside a
                   # distrobox, see gui/README.md)
-just check       # tests (against real git repos in temp dirs) + vet
+just check       # CLI + GUI tests (against real git repos in temp
+                  # dirs) + vet, the same gate CI applies
 just flatpak     # build + install the Flatpak for the current user
 ```
 

@@ -3,7 +3,9 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/didley/wt/internal/core"
 	"github.com/spf13/cobra"
 )
@@ -58,17 +60,34 @@ func runLock(_ *cobra.Command, args []string) error {
 	if target.Locked {
 		return fmt.Errorf("%q %w%s", repo.WorktreeName(target), errAlreadyLocked, reasonSuffix(target.LockReason))
 	}
-	err = repo.LockWorktree(target.Path, lockReason)
-	if err != nil {
+	reason := lockReason
+	if reason == "" && interactive() {
+		reason, err = promptLockReason()
+		if err != nil {
+			return err
+		}
+	}
+	if err := repo.LockWorktree(target.Path, reason); err != nil {
 		return fmt.Errorf("locking worktree: %w", err)
 	}
 	name := repo.WorktreeName(target)
-	if lockReason != "" {
-		fmt.Printf("Locked worktree %q (%s).\n", name, lockReason)
+	if reason != "" {
+		fmt.Printf("Locked worktree %q (%s).\n", name, reason)
 	} else {
 		fmt.Printf("Locked worktree %q.\n", name)
 	}
 	return nil
+}
+
+// promptLockReason optionally asks why the worktree is being locked; empty
+// (just pressing enter) is allowed, matching --reason being optional.
+func promptLockReason() (string, error) {
+	var reason string
+	err := runPrompt(huh.NewInput().
+		Title("Reason (optional)").
+		Description("Shown later in `wt list` and `git worktree list`.").
+		Value(&reason))
+	return strings.TrimSpace(reason), err
 }
 
 func runUnlock(_ *cobra.Command, args []string) error {
