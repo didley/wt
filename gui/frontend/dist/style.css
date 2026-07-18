@@ -11,6 +11,10 @@
   --border: #313644;
   --radius: 10px;
   font-size: 15px;
+  /* Tells the browser to render native form controls (e.g. a <select>'s
+     dropdown popup) in dark mode, so their text stays legible instead of
+     defaulting to a light popup with light text drawn on top of it. */
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -76,6 +80,9 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 }
 .icon-btn:hover { color: var(--fg); border-color: var(--fg); }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The gear glyph isn't a letter — the "i" button's italic lean and small
+   font-size stretch it out of shape, so give it its own upright sizing. */
+.icon-btn.gear { font-style: normal; font-size: 0.95em; }
 #recents { flex: 1; overflow-y: auto; padding: 4px 8px; }
 .sidebar-foot { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
 .recent {
