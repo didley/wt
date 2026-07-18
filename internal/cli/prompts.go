@@ -16,21 +16,27 @@ var errAborted = errors.New("aborted")
 
 var errNoSelection = errors.New("select at least one worktree")
 
+// huhIndigo/huhFuchsia/huhGreen/huhRed are copied verbatim from huh's
+// default theme (ThemeCharm, github.com/charmbracelet/huh@v1.0.0's
+// theme.go: Title, SelectSelector/MultiSelectSelector, SelectedOption and
+// ErrorIndicator/ErrorMessage respectively) so every bit of color this
+// package prints on its own — outside a huh.Form, which already uses these
+// via ThemeCharm — reads as the same palette rather than an unrelated
+// ANSI-256 guess. huh's Charm theme has no yellow, so stWarn (warnings,
+// dirty state, "needs attention") maps to its red (the only "pay attention"
+// color it defines) instead.
 var (
-	stDim  = lipgloss.NewStyle().Faint(true)
-	stGood = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	stWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	stBold = lipgloss.NewStyle().Bold(true)
+	huhIndigo  = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
+	huhFuchsia = lipgloss.Color("#F780E2")
+	huhGreen   = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
+	huhRed     = lipgloss.AdaptiveColor{Light: "#FF4672", Dark: "#ED567A"}
 )
 
-// menuAccent and menuGreen match huh's default ("Charm" theme) accent colors
-// — its select cursor and its selected-option text, respectively — reused
-// by menuBarModel (menubar.go) so the custom horizontal bar reads as the
-// same widget family as every huh.Select/MultiSelect elsewhere in the app
-// (which use huh's own, unmodified default theme), not a one-off.
-const (
-	menuAccent = lipgloss.Color("#F780E2")
-	menuGreen  = lipgloss.Color("#02BF87")
+var (
+	stDim  = lipgloss.NewStyle().Faint(true)
+	stGood = lipgloss.NewStyle().Foreground(huhGreen).Bold(true)
+	stWarn = lipgloss.NewStyle().Foreground(huhRed)
+	stBold = lipgloss.NewStyle().Foreground(huhIndigo).Bold(true)
 )
 
 func warnf(format string, a ...any) {

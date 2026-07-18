@@ -20,20 +20,16 @@ type menuBarItem struct {
 	description string
 }
 
-// menuTitleColor matches huh's default ("Charm" theme) Focused.Title color,
-// reused here so the bar's title reads like a huh form's rather than a
-// one-off style.
-var menuTitleColor = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
-
 // menuBarModel is a horizontal, all-options-visible-at-once alternative to
 // huh.Select: every item's name is laid out on one row (wrapping to more
 // rows on a narrow terminal), the focused one bracketed ("[name]") in the
 // same two colors huh's own default theme uses for a selected option —
-// menuAccent for the brackets (huh's select-cursor color) and menuGreen for
-// the name text (huh's selected-option color) — arrow keys move focus,
-// typing filters (no leading "/" needed, unlike huh's default), and the
-// focused item's description is shown on its own line below — mirroring
-// what huh.Select's DescriptionFunc gave the vertical version.
+// huhFuchsia for the brackets (huh's select-cursor color) and huhGreen for
+// the name text (huh's selected-option color; both defined in prompts.go)
+// — arrow keys move focus, typing filters (no leading "/" needed, unlike
+// huh's default), and the focused item's description is shown on its own
+// line below — mirroring what huh.Select's DescriptionFunc gave the
+// vertical version.
 //
 // huh.Select has no such layout (only one-per-line vertical, or a
 // single-item Inline carousel), hence a small bubbletea model instead of
@@ -77,7 +73,7 @@ func (m menuBarModel) View() string {
 	if m.filter != "" {
 		title = "/" + m.filter
 	}
-	b.WriteString(lipgloss.NewStyle().Foreground(menuTitleColor).Bold(true).Render(title))
+	b.WriteString(lipgloss.NewStyle().Foreground(huhIndigo).Bold(true).Render(title))
 	b.WriteString("\n\n")
 
 	items := m.filtered()
@@ -86,8 +82,8 @@ func (m menuBarModel) View() string {
 		width = defaultMenuBarWidth
 	}
 	cursor := clampCursor(m.cursor, len(items))
-	bracketStyle := lipgloss.NewStyle().Foreground(menuAccent).Bold(true)
-	nameStyle := lipgloss.NewStyle().Foreground(menuGreen).Bold(true)
+	bracketStyle := lipgloss.NewStyle().Foreground(huhFuchsia).Bold(true)
+	nameStyle := lipgloss.NewStyle().Foreground(huhGreen).Bold(true)
 
 	const bracketWidth = len("[]")
 
