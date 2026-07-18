@@ -86,7 +86,7 @@
         <span class="muted small">The commit the new branch starts from.</span>
       </label>
       <footer>
-        <button value="cancel" class="btn">Cancel</button>
+        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="create-confirm" value="ok" class="btn primary">Create worktree</button>
       </footer>
     </form>
@@ -101,7 +101,7 @@
         <input id="lock-reason" placeholder="e.g. reviewing, on a USB drive" autocomplete="off" />
       </label>
       <footer>
-        <button value="cancel" class="btn">Cancel</button>
+        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="lock-confirm" value="ok" class="btn primary">Lock</button>
       </footer>
     </form>
@@ -136,7 +136,7 @@
       </div>
 
       <footer>
-        <button value="cancel" class="btn">Cancel</button>
+        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="remove-confirm" value="ok" class="btn danger">Remove worktree</button>
       </footer>
     </form>
@@ -172,7 +172,7 @@
       </div>
 
       <footer>
-        <button value="cancel" class="btn">Cancel</button>
+        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="remove-bulk-confirm" value="ok" class="btn danger">Remove worktrees</button>
       </footer>
     </form>
@@ -188,7 +188,7 @@
       <label class="check"><input type="checkbox" id="rename-branch-too" />
         <span>Also rename the branch <span id="rename-branch-name" class="user-selectable mono"></span> <span class="muted">(off: only the directory changes)</span></span></label>
       <footer>
-        <button value="cancel" class="btn">Cancel</button>
+        <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
       </footer>
     </form>
