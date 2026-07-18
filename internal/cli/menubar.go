@@ -27,12 +27,13 @@ var menuTitleColor = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
 
 // menuBarModel is a horizontal, all-options-visible-at-once alternative to
 // huh.Select: every item's name is laid out on one row (wrapping to more
-// rows on a narrow terminal), the focused one bracketed and colored like a
-// huh.Select's own cursor (menuAccent, matching wtTheme's "[•] " selector),
-// arrow keys move focus, typing filters (no leading "/" needed, unlike
-// huh's default), and the focused item's description is shown on its own
-// line below — mirroring what huh.Select's DescriptionFunc gave the
-// vertical version.
+// rows on a narrow terminal), the focused one bracketed ("[name]") in the
+// same two colors huh's own default theme uses for a selected option —
+// menuAccent for the brackets (huh's select-cursor color) and menuGreen for
+// the name text (huh's selected-option color) — arrow keys move focus,
+// typing filters (no leading "/" needed, unlike huh's default), and the
+// focused item's description is shown on its own line below — mirroring
+// what huh.Select's DescriptionFunc gave the vertical version.
 //
 // huh.Select has no such layout (only one-per-line vertical, or a
 // single-item Inline carousel), hence a small bubbletea model instead of
@@ -85,16 +86,17 @@ func (m menuBarModel) View() string {
 		width = defaultMenuBarWidth
 	}
 	cursor := clampCursor(m.cursor, len(items))
-	focusedStyle := lipgloss.NewStyle().Foreground(menuAccent).Bold(true)
+	bracketStyle := lipgloss.NewStyle().Foreground(menuAccent).Bold(true)
+	nameStyle := lipgloss.NewStyle().Foreground(menuGreen).Bold(true)
 
-	const bracketWidth = len("[• ]")
+	const bracketWidth = len("[]")
 
 	lineWidth := 0
 	for i, it := range items {
 		name := it.name
 		displayLen := len(it.name)
 		if i == cursor {
-			name = focusedStyle.Render("[• " + it.name + "]")
+			name = bracketStyle.Render("[") + nameStyle.Render(it.name) + bracketStyle.Render("]")
 			displayLen += bracketWidth
 		}
 

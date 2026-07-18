@@ -23,20 +23,15 @@ var (
 	stBold = lipgloss.NewStyle().Bold(true)
 )
 
-// menuAccent is huh's own default ("Charm" theme) accent color for a
-// select's cursor/selected option — reused by menuBarModel (menubar.go) so
-// the custom horizontal bar reads as the same widget family as every
-// huh.Select/MultiSelect elsewhere in the app, not a one-off.
-const menuAccent = lipgloss.Color("#F780E2")
-
-// wtTheme is huh's default theme with the select cursor changed to a
-// bracket style ("[•] "), so a single-choice huh.Select reads visually
-// consistent with a huh.MultiSelect's own "[ ]"/"[x]" checkboxes.
-func wtTheme() *huh.Theme {
-	t := huh.ThemeCharm()
-	t.Focused.SelectSelector = lipgloss.NewStyle().Foreground(menuAccent).SetString("[•] ")
-	return t
-}
+// menuAccent and menuGreen match huh's default ("Charm" theme) accent colors
+// — its select cursor and its selected-option text, respectively — reused
+// by menuBarModel (menubar.go) so the custom horizontal bar reads as the
+// same widget family as every huh.Select/MultiSelect elsewhere in the app
+// (which use huh's own, unmodified default theme), not a one-off.
+const (
+	menuAccent = lipgloss.Color("#F780E2")
+	menuGreen  = lipgloss.Color("#02BF87")
+)
 
 func warnf(format string, a ...any) {
 	fmt.Fprintln(os.Stderr, stWarn.Render(fmt.Sprintf(format, a...)))
@@ -49,7 +44,7 @@ func interactive() bool {
 // runPrompt renders huh fields on stderr so stdout stays clean for command
 // output (the shell wrapper for `wt switch` captures stdout).
 func runPrompt(fields ...huh.Field) error {
-	err := huh.NewForm(huh.NewGroup(fields...)).WithTheme(wtTheme()).WithOutput(os.Stderr).Run()
+	err := huh.NewForm(huh.NewGroup(fields...)).WithOutput(os.Stderr).Run()
 	if errors.Is(err, huh.ErrUserAborted) {
 		return errAborted
 	}
