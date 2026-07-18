@@ -47,6 +47,20 @@ var (
 	errNewNameEmpty            = errors.New("a new name is required")
 	errAlreadyLocked           = errors.New("is already locked")
 	errNotLocked               = errors.New("is not locked")
+	errBinNotOnPath            = errors.New("not found on PATH — install it or change the open-target setting")
+	errCustomCmdEmpty          = errors.New("no custom open command is configured — set one in Settings")
+	errUnknownOpenTarget       = errors.New("unknown open target")
+	errCustomCmdRequired       = errors.New("a custom command is required")
+)
+
+// Open targets the "Open" button can be configured to use.
+const (
+	openTargetFileManager = "" // reveal the worktree in the system file manager (default)
+	openTargetCode        = "code"
+	openTargetCursor      = "cursor"
+	openTargetZed         = "zed"
+	openTargetSubl        = "subl"
+	openTargetCustom      = "custom"
 )
 
 // App exposes worktree operations to the frontend. All methods mirror the
@@ -654,23 +668,34 @@ func plural(n int) string {
 	return pluralEntries
 }
 
-// OpenPath reveals a directory in the system file manager. path is always a
-// worktree path this process itself resolved (never raw user input passed
-// through a shell), so this isn't attacker-controlled command injection.
+// openTargetBinaries maps a built-in OpenTarget to the CLI binary it
+// launches with the worktree path as its sole argument.
+var openTargetBinaries = map[string]string{
+	openTargetCode:   "code",
+	openTargetCursor: "cursor",
+	openTargetZed:    "zed",
+	openTargetSubl:   "subl",
+}
+
+// OpenPath opens a worktree path with the app's configured open target:
+// the system file manager by default, a known editor binary, or a
+// user-authored custom command. path is always a worktree path this
+// process itself resolved (never raw user input passed through a shell),
+// so this isn't attacker-controlled command injection.
 func (a *App) OpenPath(path string) error {
-	var cmd *exec.Cmd
-	switch {
-	case os.Getenv("FLATPAK_ID") != "":
-		cmd = exec.CommandContext(a.ctx, "xdg-open", path) //nolint:gosec // routed through the portal
-	case runtime.GOOS == goosDarwin:
-		cmd = exec.CommandContext(a.ctx, "open", path) //nolint:gosec
+	cfg := loadConfig()
+	switch cfg.OpenTarget {
+	case openTargetFileManager:
+		return a.openWithFileManager(path)
+	case openTargetCustom:
+		return a.openWithCustomCommand(cfg.CustomOpenCmd, path)
 	default:
-		cmd = exec.CommandContext(a.ctx, "xdg-open", path) //nolint:gosec
+		bin, ok := openTargetBinaries[cfg.OpenTarget]
+		if !ok {
+			return a.openWithFileManager(path)
+		}
+		return a.openWithBinary(bin, path)
 	}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("opening %s: %w", path, err)
-	}
-	return nil
 }
 
 func (a *App) CopyPath(path string) error {
@@ -684,6 +709,11 @@ func (a *App) CopyPath(path string) error {
 
 type guiConfig struct {
 	Recent []string `json:"recent"`
+	// OpenTarget selects what the per-worktree "Open" button launches: ""
+	// (openTargetFileManager) for the system file manager, a key of
+	// openTargetBinaries for a known editor, or "custom" for CustomOpenCmd.
+	OpenTarget    string `json:"openTarget"`
+	CustomOpenCmd string `json:"customOpenCmd"`
 }
 
 func configPath() string {
@@ -737,6 +767,87 @@ func (a *App) ForgetRepo(path string) []string {
 	cfg.Recent = slices.DeleteFunc(cfg.Recent, func(p string) bool { return p == path })
 	saveConfig(cfg)
 	return a.RecentRepos()
+}
+
+// GetOpenTarget returns the app's configured open target and, when it's
+// "custom", the associated command template.
+func (a *App) GetOpenTarget() (string, string) {
+	cfg := loadConfig()
+	return cfg.OpenTarget, cfg.CustomOpenCmd
+}
+
+// SetOpenTarget persists the open target the "Open" button should use.
+// target must be "" (file manager), a key of openTargetBinaries, or
+// "custom"; customCmd is only meaningful (and required) for "custom".
+func (a *App) SetOpenTarget(target, customCmd string) error {
+	if target != openTargetFileManager && target != openTargetCustom {
+		if _, ok := openTargetBinaries[target]; !ok {
+			return fmt.Errorf("%w: %q", errUnknownOpenTarget, target)
+		}
+	}
+	if target == openTargetCustom && strings.TrimSpace(customCmd) == "" {
+		return errCustomCmdRequired
+	}
+	cfg := loadConfig()
+	cfg.OpenTarget = target
+	cfg.CustomOpenCmd = customCmd
+	saveConfig(cfg)
+	return nil
+}
+
+func (a *App) openWithFileManager(path string) error {
+	var cmd *exec.Cmd
+	switch {
+	case os.Getenv("FLATPAK_ID") != "":
+		cmd = exec.CommandContext(a.ctx, "xdg-open", path) //nolint:gosec // routed through the portal
+	case runtime.GOOS == goosDarwin:
+		cmd = exec.CommandContext(a.ctx, "open", path) //nolint:gosec
+	default:
+		cmd = exec.CommandContext(a.ctx, "xdg-open", path) //nolint:gosec
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("opening %s: %w", path, err)
+	}
+	return nil
+}
+
+func (a *App) openWithBinary(bin, path string) error {
+	if _, err := exec.LookPath(bin); err != nil {
+		return fmt.Errorf("%s: %w", bin, errBinNotOnPath)
+	}
+	cmd := exec.CommandContext(a.ctx, bin, path) //nolint:gosec // bin is one of a fixed set of known editor names
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("opening %s with %s: %w", path, bin, err)
+	}
+	return nil
+}
+
+// openWithCustomCommand substitutes path into template's {path} placeholder
+// (or appends it as the last argument if there's no placeholder) and runs
+// it. template is a user-authored local command, not attacker input, so a
+// minimal whitespace split is enough for a first cut.
+func (a *App) openWithCustomCommand(template, path string) error {
+	template = strings.TrimSpace(template)
+	if template == "" {
+		return errCustomCmdEmpty
+	}
+	var args []string
+	if strings.Contains(template, "{path}") {
+		args = strings.Fields(strings.ReplaceAll(template, "{path}", path))
+	} else {
+		args = append(strings.Fields(template), path)
+	}
+	if len(args) == 0 {
+		return errCustomCmdEmpty
+	}
+	if _, err := exec.LookPath(args[0]); err != nil {
+		return fmt.Errorf("%s: %w", args[0], errBinNotOnPath)
+	}
+	cmd := exec.CommandContext(a.ctx, args[0], args[1:]...) //nolint:gosec // user-authored local command
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("opening %s: %w", path, err)
+	}
+	return nil
 }
 
 func (a *App) rememberRepo(path string) {

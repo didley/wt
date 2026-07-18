@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -141,5 +143,94 @@ func TestPlural(t *testing.T) {
 	}
 	if got := plural(2); got != pluralEntries {
 		t.Errorf("plural(2) = %q, want %q", got, "entries")
+	}
+}
+
+func TestGetSetOpenTarget(t *testing.T) {
+	withConfigDir(t)
+	a := &App{}
+
+	target, customCmd := a.GetOpenTarget()
+	if target != "" || customCmd != "" {
+		t.Errorf("GetOpenTarget() on missing config = (%q, %q), want empty", target, customCmd)
+	}
+
+	if err := a.SetOpenTarget(openTargetCode, ""); err != nil {
+		t.Fatalf("SetOpenTarget(code) error: %v", err)
+	}
+	target, _ = a.GetOpenTarget()
+	if target != openTargetCode {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(code) = %q, want %q", target, openTargetCode)
+	}
+
+	const customTemplate = "code {path}"
+	if err := a.SetOpenTarget(openTargetCustom, customTemplate); err != nil {
+		t.Fatalf("SetOpenTarget(custom) error: %v", err)
+	}
+	target, customCmd = a.GetOpenTarget()
+	if target != openTargetCustom || customCmd != customTemplate {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(custom) = (%q, %q)", target, customCmd)
+	}
+
+	if err := a.SetOpenTarget(openTargetCustom, ""); err == nil {
+		t.Error("SetOpenTarget(custom, \"\") should require a command")
+	}
+	if err := a.SetOpenTarget("not-a-real-target", ""); err == nil {
+		t.Error("SetOpenTarget(unknown target) should error")
+	}
+}
+
+func TestOpenWithBinary(t *testing.T) {
+	a := &App{ctx: context.Background()}
+
+	if err := a.openWithBinary("true", "/some/path"); err != nil {
+		t.Errorf("openWithBinary(true) error: %v", err)
+	}
+	err := a.openWithBinary("nonexistent-binary-xyz", "/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("openWithBinary(missing) error = %v, want \"not found on PATH\"", err)
+	}
+}
+
+func TestOpenWithCustomCommand(t *testing.T) {
+	a := &App{ctx: context.Background()}
+
+	if err := a.openWithCustomCommand("true {path}", "/some/path"); err != nil {
+		t.Errorf("openWithCustomCommand with placeholder error: %v", err)
+	}
+	if err := a.openWithCustomCommand("true", "/some/path"); err != nil {
+		t.Errorf("openWithCustomCommand without placeholder error: %v", err)
+	}
+	if err := a.openWithCustomCommand("", "/some/path"); err == nil {
+		t.Error("openWithCustomCommand(\"\") should error")
+	}
+	if err := a.openWithCustomCommand("   ", "/some/path"); err == nil {
+		t.Error("openWithCustomCommand(whitespace) should error")
+	}
+	err := a.openWithCustomCommand("nonexistent-binary-xyz {path}", "/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("openWithCustomCommand(missing binary) error = %v, want \"not found on PATH\"", err)
+	}
+}
+
+func TestOpenPath_RoutesToConfiguredTarget(t *testing.T) {
+	withConfigDir(t)
+	a := &App{ctx: context.Background()}
+
+	if err := a.SetOpenTarget("zed", ""); err != nil {
+		t.Fatalf("SetOpenTarget error: %v", err)
+	}
+	// "zed" isn't installed in the test environment, so OpenPath should
+	// surface the not-found error rather than silently doing nothing.
+	err := a.OpenPath("/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("OpenPath() with unset editor = %v, want \"not found on PATH\"", err)
+	}
+
+	if err := a.SetOpenTarget(openTargetCustom, "true {path}"); err != nil {
+		t.Fatalf("SetOpenTarget error: %v", err)
+	}
+	if err := a.OpenPath("/some/path"); err != nil {
+		t.Errorf("OpenPath() with custom command error: %v", err)
 	}
 }

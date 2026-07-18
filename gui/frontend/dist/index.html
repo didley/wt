@@ -15,6 +15,7 @@
       </div>
       <nav id="recents"></nav>
       <div class="sidebar-foot">
+        <button id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
         <button id="about-btn" class="icon-btn" title="About wt" aria-label="About wt">i</button>
       </div>
     </aside>
@@ -193,6 +194,31 @@
       <footer>
         <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog id="dlg-settings">
+    <form method="dialog">
+      <h2>Settings</h2>
+      <label>Open worktree with
+        <select id="open-target">
+          <option value="">File manager</option>
+          <option value="code">VS Code</option>
+          <option value="cursor">Cursor</option>
+          <option value="zed">Zed</option>
+          <option value="subl">Sublime Text</option>
+          <option value="custom">Custom command…</option>
+        </select>
+      </label>
+      <label id="open-target-custom-label">Custom command
+        <input id="open-target-custom" placeholder="code {path}" autocomplete="off" />
+        <span class="muted small">Use <code>{path}</code> for the worktree path, or it's appended as the last argument.</span>
+      </label>
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="settings-confirm" value="ok" class="btn primary">Save</button>
       </footer>
     </form>
   </dialog>

@@ -59,11 +59,16 @@ async function refreshIfChanged() {
 
 function wireStaticHandlers() {
   $("about-btn").addEventListener("click", openAboutDialog);
+  $("settings-btn").addEventListener("click", openSettingsDialog);
   // A click that lands on the <dialog> element itself (not its content) is
   // a click on the backdrop, since the dialog fills the content box.
   $("dlg-about").addEventListener("click", (ev) => {
     if (ev.target === $("dlg-about")) $("dlg-about").close();
   });
+  $("dlg-settings").addEventListener("click", (ev) => {
+    if (ev.target === $("dlg-settings")) $("dlg-settings").close();
+  });
+  $("open-target").addEventListener("change", updateOpenTargetCustomVisibility);
   $("about-repo-link").addEventListener("click", () => api().OpenURL("https://github.com/didley/wt"));
   $("about-author-link").addEventListener("click", () => api().OpenURL("https://github.com/didley"));
   $("open-repo").addEventListener("click", async () => {
@@ -580,6 +585,33 @@ function openRenameDialog(wt) {
     if (!newName || newName === wt.name) return;
     const renameBranch = hasBranch && $("rename-branch-too").checked;
     await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch), "Renaming worktree…");
+  };
+  dlg.showModal();
+}
+
+// ---------- settings dialog ----------
+
+function updateOpenTargetCustomVisibility() {
+  $("open-target-custom-label").style.display = $("open-target").value === "custom" ? "" : "none";
+}
+
+async function openSettingsDialog() {
+  const dlg = $("dlg-settings");
+  const [target, customCmd] = await api().GetOpenTarget();
+  $("open-target").value = target;
+  $("open-target-custom").value = customCmd;
+  updateOpenTargetCustomVisibility();
+
+  dlg.returnValue = "cancel";
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    const newTarget = $("open-target").value;
+    const newCustomCmd = $("open-target-custom").value.trim();
+    try {
+      await api().SetOpenTarget(newTarget, newCustomCmd);
+    } catch (e) {
+      toast(String(e), true);
+    }
   };
   dlg.showModal();
 }
