@@ -20,12 +20,29 @@ static void on_zoom_notify(GObject *obj, GParamSpec *pspec, gpointer user_data) 
 	reset_zoom(WEBKIT_WEB_VIEW(obj));
 }
 
+// disable_pinch_zoom neuters WebKitWebView's built-in trackpad pinch-to-zoom
+// gesture. WebKitGTK attaches a GtkGesture for this directly to the
+// WebKitWebView as object data under the key "wk-view-zoom-gesture" (see
+// WebKitWebViewBase's gesture setup); it's not exposed via any public
+// WebKitSettings property, and it drives the render scale directly, so it
+// never touches the "zoom-level" property reset_zoom() guards. Destroying
+// the gesture's own signal handlers stops it from reacting to touches at
+// all, without touching anything else on the widget.
+static void disable_pinch_zoom(WebKitWebView *view) {
+	gpointer gesture = g_object_get_data(G_OBJECT(view), "wk-view-zoom-gesture");
+	if (gesture != NULL) {
+		g_signal_handlers_destroy(G_OBJECT(gesture));
+	}
+}
+
 // find_and_guard walks a widget subtree looking for the WebKitWebView and,
-// once found, pins its zoom level at 1.0 for the life of the window.
+// once found, pins its zoom level at 1.0 and disables pinch-to-zoom for the
+// life of the window.
 static void find_and_guard(GtkWidget *widget) {
 	if (WEBKIT_IS_WEB_VIEW(widget)) {
 		g_signal_connect(widget, "notify::zoom-level", G_CALLBACK(on_zoom_notify), NULL);
 		reset_zoom(WEBKIT_WEB_VIEW(widget));
+		disable_pinch_zoom(WEBKIT_WEB_VIEW(widget));
 		return;
 	}
 	if (GTK_IS_CONTAINER(widget)) {
