@@ -214,6 +214,9 @@
           <option value="custom">Custom command…</option>
         </select>
       </label>
+      <p id="open-target-linux-note" class="muted small" hidden>
+        Editors are launched via <code>flatpak-spawn --host</code>, so they run with your host system's PATH, not the sandbox's.
+      </p>
       <label id="open-target-custom-label">Custom command
         <input id="open-target-custom" placeholder="code {path}" autocomplete="off" />
         <span class="muted small">Use <code>{path}</code> for the worktree path, or it's appended as the last argument.</span>

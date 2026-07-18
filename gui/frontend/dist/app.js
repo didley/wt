@@ -631,6 +631,9 @@ async function openSettingsDialog() {
   $("open-target").value = openTarget.target;
   $("open-target-custom").value = openTarget.customOpenCmd;
   updateOpenTargetCustomVisibility();
+  // The GUI runs in a Flatpak sandbox only on Linux — macOS builds run
+  // editors directly, so this detail would be noise there.
+  $("open-target-linux-note").hidden = appOS !== "linux";
 
   dlg.returnValue = "cancel";
   dlg.onclose = async () => {

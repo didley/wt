@@ -46,6 +46,18 @@ func TestLoadConfig_Missing(t *testing.T) {
 	}
 }
 
+// On a first-ever launch (no gui.json yet), the open target must default to
+// the file manager — openTargetFileManager is the zero value, so this is
+// really a guard against that invariant getting broken later.
+func TestGetOpenTarget_DefaultsToFileManagerOnFirstLaunch(t *testing.T) {
+	withConfigDir(t)
+	a := &App{}
+	info := a.GetOpenTarget()
+	if info.Target != openTargetFileManager {
+		t.Errorf("GetOpenTarget() on first launch = %+v, want Target %q", info, openTargetFileManager)
+	}
+}
+
 func TestSaveAndLoadConfig(t *testing.T) {
 	withConfigDir(t)
 	saveConfig(guiConfig{Recent: []string{"/a", "/b"}})

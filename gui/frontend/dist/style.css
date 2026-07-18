@@ -227,6 +227,19 @@ dialog input[type="text"], dialog input:not([type]), dialog textarea, dialog sel
 }
 dialog textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
 dialog input:focus, dialog textarea:focus, dialog select:focus { outline: 1px solid var(--accent); }
+/* Native <select> chevrons default to a light, OS-drawn arrow that clashes
+   with the dark theme — swap in a plain themed one. color-scheme (in
+   :root) covers the dropdown popup itself; option background/color is
+   belt-and-braces for engines that don't fully honor color-scheme there. */
+dialog select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%238b93a3' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+dialog select option { background: var(--bg2); color: var(--fg); }
 dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .chip {
