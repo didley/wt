@@ -75,19 +75,22 @@
   <!-- Create -->
   <dialog id="dlg-create">
     <form method="dialog">
-      <h2>New worktree</h2>
-      <label>Branch
-        <input id="create-branch" list="branch-options" placeholder="feature/thing" autocomplete="off" required />
-        <datalist id="branch-options"></datalist>
+      <h2>New worktree(s)</h2>
+      <label>Branch(es)
+        <textarea id="create-branch" rows="3" placeholder="feature/one&#10;feature/two" autocomplete="off" required></textarea>
       </label>
+      <div id="create-existing-branches" hidden>
+        <span class="muted small">Existing, no worktree yet — click to add:</span>
+        <div id="create-existing-branches-list" class="chips"></div>
+      </div>
       <p id="create-hint" class="muted"></p>
-      <label id="create-base-label">Base ref
+      <label>Base ref
         <input id="create-base" autocomplete="off" />
-        <span class="muted small">The commit the new branch starts from.</span>
+        <span class="muted small">The commit new branches start from. Ignored for existing branches.</span>
       </label>
       <footer>
         <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
-        <button id="create-confirm" value="ok" class="btn primary">Create worktree</button>
+        <button id="create-confirm" value="ok" class="btn primary">Create worktree(s)</button>
       </footer>
     </form>
   </dialog>

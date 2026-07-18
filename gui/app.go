@@ -36,17 +36,17 @@ var (
 	errBareRepoUnsupported = errors.New(
 		"bare repositories are not supported (wt needs a main checkout to anchor <repo>.worktrees/)",
 	)
-	errNotAGitRepo         = errors.New("is not inside a git repository")
-	errBranchNameEmpty     = errors.New("branch name is required")
-	errBranchCheckedOut    = errors.New("is already checked out at")
-	errDirExists           = errors.New("directory already exists")
-	errNoWorktreeAt        = errors.New("no worktree at")
-	errMainNotRemovable    = errors.New("the main checkout cannot be removed")
-	errLockedNeedsOverride = errors.New("is locked")
-	errDirtyNeedsChoice    = errors.New("the worktree has uncommitted changes — choose to stash or discard them")
-	errNewNameEmpty        = errors.New("a new name is required")
-	errAlreadyLocked       = errors.New("is already locked")
-	errNotLocked           = errors.New("is not locked")
+	errNotAGitRepo             = errors.New("is not inside a git repository")
+	errBranchNameEmpty         = errors.New("branch name is required")
+	errBranchAlreadyCheckedOut = errors.New("is already checked out")
+	errDirExists               = errors.New("directory already exists")
+	errNoWorktreeAt            = errors.New("no worktree at")
+	errMainNotRemovable        = errors.New("the main checkout cannot be removed")
+	errLockedNeedsOverride     = errors.New("is locked")
+	errDirtyNeedsChoice        = errors.New("the worktree has uncommitted changes — choose to stash or discard them")
+	errNewNameEmpty            = errors.New("a new name is required")
+	errAlreadyLocked           = errors.New("is already locked")
+	errNotLocked               = errors.New("is not locked")
 )
 
 // App exposes worktree operations to the frontend. All methods mirror the
@@ -226,30 +226,94 @@ func (a *App) CreateWorktree(repoPath, branch, base string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("listing worktrees: %w", err)
 	}
-	for _, w := range wts {
-		if w.Branch == branch {
-			return "", fmt.Errorf("branch %q %w %s", branch, errBranchCheckedOut, w.Path)
+	checkedOut := checkedOutBranches(wts)
+	_, msg, err := createOneWorktree(repo, checkedOut, branch, base)
+	return msg, err
+}
+
+// CreateWorktrees is CreateWorktree for a batch: one worktree per branch,
+// all new branches sharing base. Like RemoveWorktrees, a failure on one
+// branch is reported without aborting the rest of the batch. Returns a
+// toast message summarizing what was created.
+func (a *App) CreateWorktrees(repoPath string, branches []string, base string) (string, error) {
+	repo, err := core.Discover(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("discovering repo: %w", err)
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return "", fmt.Errorf("listing worktrees: %w", err)
+	}
+	checkedOut := checkedOutBranches(wts)
+
+	var created []string
+	var errs []error
+	for _, branch := range branches {
+		branch = strings.TrimSpace(branch)
+		if branch == "" {
+			continue
 		}
+		name, _, err := createOneWorktree(repo, checkedOut, branch, base)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", branch, err))
+			continue
+		}
+		created = append(created, name)
+	}
+
+	var msg string
+	if len(created) > 0 {
+		msg = fmt.Sprintf("Created %d worktree(s): %s.", len(created), strings.Join(created, ", "))
+	}
+	if len(errs) > 0 {
+		return msg, errors.Join(errs...)
+	}
+	return msg, nil
+}
+
+// checkedOutBranches maps every branch already checked out in some
+// worktree, so a single or batch create can reject duplicates up front.
+func checkedOutBranches(wts []core.Worktree) map[string]bool {
+	checkedOut := make(map[string]bool, len(wts))
+	for _, w := range wts {
+		if w.Branch != "" {
+			checkedOut[w.Branch] = true
+		}
+	}
+	return checkedOut
+}
+
+// createOneWorktree creates a single worktree for branch (new or an
+// existing one not yet checked out), recording it in checkedOut so a
+// batch caller catches duplicates within the same call. Returns the
+// worktree's sanitized name and a toast message.
+func createOneWorktree(repo *core.Repo, checkedOut map[string]bool, branch, base string) (name, msg string, err error) {
+	if branch == "" {
+		return "", "", errBranchNameEmpty
+	}
+	if checkedOut[branch] {
+		return "", "", fmt.Errorf("branch %q %w", branch, errBranchAlreadyCheckedOut)
 	}
 	isNew := !repo.BranchExists(branch)
 	if isNew && base == "" {
 		base = repo.DefaultBranch()
 	}
-	name := core.SanitizeBranchName(branch)
+	name = core.SanitizeBranchName(branch)
 	path := repo.ConventionalPath(name)
 	if _, statErr := os.Stat(path); statErr == nil {
-		return "", fmt.Errorf("%w: %s", errDirExists, path)
+		return "", "", fmt.Errorf("%w: %s", errDirExists, path)
 	}
 	if err := os.MkdirAll(repo.WorktreesDir(), dirPerm); err != nil {
-		return "", fmt.Errorf("creating worktrees directory: %w", err)
+		return "", "", fmt.Errorf("creating worktrees directory: %w", err)
 	}
 	if err := repo.AddWorktree(path, branch, base, isNew); err != nil {
-		return "", fmt.Errorf("adding worktree: %w", err)
+		return "", "", fmt.Errorf("adding worktree: %w", err)
 	}
+	checkedOut[branch] = true
 	if isNew {
-		return fmt.Sprintf("Created worktree %q — new branch %q from %s", name, branch, base), nil
+		return name, fmt.Sprintf("Created worktree %q — new branch %q from %s", name, branch, base), nil
 	}
-	return fmt.Sprintf("Created worktree %q for existing branch %q", name, branch), nil
+	return name, fmt.Sprintf("Created worktree %q for existing branch %q", name, branch), nil
 }
 
 // findWorktree returns a pointer into wts for the entry at path, or nil.

@@ -290,6 +290,52 @@ func TestCreateWorktree(t *testing.T) {
 	}
 }
 
+func TestCreateWorktrees(t *testing.T) {
+	repo := newTestRepo(t)
+	a := &App{}
+
+	msg, err := a.CreateWorktrees(repo.MainPath, []string{"feature/a", "feature/b"}, "")
+	if err != nil {
+		t.Fatalf("CreateWorktrees: %v", err)
+	}
+	if !strings.Contains(msg, "Created 2 worktree") {
+		t.Errorf("CreateWorktrees() msg = %q, want mention of 2 created", msg)
+	}
+	if _, err := os.Stat(repo.ConventionalPath("feature-a")); err != nil {
+		t.Errorf("worktree directory missing: %v", err)
+	}
+	if _, err := os.Stat(repo.ConventionalPath("feature-b")); err != nil {
+		t.Errorf("worktree directory missing: %v", err)
+	}
+
+	// Blank entries are skipped rather than erroring.
+	msg, err = a.CreateWorktrees(repo.MainPath, []string{"feature/c", "  "}, "")
+	if err != nil {
+		t.Fatalf("CreateWorktrees(blank entry): %v", err)
+	}
+	if !strings.Contains(msg, "Created 1 worktree") {
+		t.Errorf("CreateWorktrees(blank entry) msg = %q, want 1 created", msg)
+	}
+}
+
+func TestCreateWorktreesPartialFailure(t *testing.T) {
+	repo := newTestRepo(t)
+	a := &App{}
+	addWorktree(t, repo, "feature-a", "feature/a")
+
+	// One branch is already checked out; the other should still be created.
+	msg, err := a.CreateWorktrees(repo.MainPath, []string{"feature/a", "feature/b"}, "")
+	if err == nil {
+		t.Error("CreateWorktrees(one already checked out) = nil error, want joined error")
+	}
+	if !strings.Contains(msg, "Created 1 worktree") {
+		t.Errorf("CreateWorktrees(partial failure) msg = %q, want 1 created", msg)
+	}
+	if _, err := os.Stat(repo.ConventionalPath("feature-b")); err != nil {
+		t.Errorf("worktree directory missing: %v", err)
+	}
+}
+
 func TestRemoveWorktree(t *testing.T) {
 	repo := newTestRepo(t)
 	a := &App{}
