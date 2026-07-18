@@ -190,7 +190,7 @@ func TestMenuBarView(t *testing.T) {
 	if !contains(out, "Create a worktree") {
 		t.Errorf("View() = %q, want the focused item's description", out)
 	}
-	if !contains(out, "any arrow key to move") {
+	if !contains(out, "move") {
 		t.Errorf("View() with the first item focused = %q, want the move/filter hint", out)
 	}
 

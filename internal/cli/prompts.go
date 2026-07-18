@@ -16,6 +16,15 @@ var errAborted = errors.New("aborted")
 
 var errNoSelection = errors.New("select at least one worktree")
 
+// multiSelectHelp documents huh.MultiSelect's toggle key as a field
+// Description (always visible) rather than relying on huh's help footer:
+// that footer is replaced by the validation error message the instant a
+// multiselect requiring at least one item renders with none picked (see
+// huh@v1.0.0's group.go Footer(): "if g.showHelp && len(errors) <= 0"),
+// so "space/x toggle" would otherwise never be shown to someone who hasn't
+// picked anything yet — precisely who needs to see it.
+const multiSelectHelp = "space or x to select, enter to confirm"
+
 // huhIndigo/huhFuchsia/huhGreen/huhRed are copied verbatim from huh's
 // default theme (ThemeCharm, github.com/charmbracelet/huh@v1.0.0's
 // theme.go: Title, SelectSelector/MultiSelectSelector, SelectedOption and
@@ -195,6 +204,7 @@ func pickWorktrees(repo *core.Repo, wts []core.Worktree, title string) ([]core.W
 	var idxs []int
 	err := runPrompt(huh.NewMultiSelect[int]().
 		Title(title).
+		Description(multiSelectHelp).
 		Options(worktreeOptions(repo, wts)...).
 		Validate(func(vals []int) error {
 			if len(vals) == 0 {

@@ -220,6 +220,7 @@ func promptExistingBranches(available []string) ([]branchSpec, error) {
 	var picked []string
 	err := runPrompt(huh.NewMultiSelect[string]().
 		Title("Branch(es)").
+		Description(multiSelectHelp).
 		Options(opts...).
 		Validate(func(vals []string) error {
 			if len(vals) == 0 {

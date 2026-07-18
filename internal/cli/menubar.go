@@ -80,7 +80,7 @@ func (m menuBarModel) View() string {
 	b.WriteString("\n")
 
 	if m.showMoveHint(items, cursor) {
-		b.WriteString(stDim.Render("any arrow key to move  •  type to filter"))
+		b.WriteString(stDim.Render("←→/↑↓ move  •  type to filter"))
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
@@ -97,8 +97,8 @@ func (m menuBarModel) View() string {
 	return b.String()
 }
 
-// showMoveHint reports whether the "any arrow key to move / type to
-// filter" hint should show: only while the very first command (m.items[0],
+// showMoveHint reports whether the "←→/↑↓ move / type to filter" hint
+// should show: only while the very first command (m.items[0],
 // "add") is what's focused — i.e. someone hasn't moved or typed yet, or has
 // arrowed back to the start — so it says its piece once rather than on
 // every frame.

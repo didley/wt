@@ -122,6 +122,7 @@ func promptIntegrations() ([]string, error) {
 	var selected []string
 	err := runPrompt(huh.NewMultiSelect[string]().
 		Title("Install which integration(s)?").
+		Description(multiSelectHelp).
 		Options(
 			huh.NewOption("cd wrapper (`wt switch`/`cd` change directory)", integWrapper).Selected(true),
 			huh.NewOption("tab completions", integCompletions).Selected(true),
