@@ -145,6 +145,7 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 }
 .badge.main { background: color-mix(in srgb, var(--accent) 22%, var(--bg3)); color: var(--accent); }
 .badge.stray { background: color-mix(in srgb, var(--warn) 22%, var(--bg3)); color: var(--warn); }
+.badge.locked { background: color-mix(in srgb, var(--warn) 22%, var(--bg3)); color: var(--warn); }
 .branch-chip { color: var(--muted); font-size: 0.88em; }
 .state { margin-left: auto; font-size: 0.88em; }
 .state.clean { color: var(--good); }
@@ -189,6 +190,10 @@ dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 
   background: color-mix(in srgb, var(--accent) 10%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   border-radius: 8px; padding: 10px 12px; font-size: 0.9em;
+}
+.notice.danger-notice {
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg));
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
 }
 label.radio, label.check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.92em; }
 label.radio input, label.check input { margin-top: 3px; }

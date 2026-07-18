@@ -121,9 +121,9 @@ Branch names containing `/` get flattened directory names:
 
 ### `wt list` (alias: `ls`)
 
-Show all worktrees relative to the main checkout with their branch and
-dirty state. `--porcelain` prints stable tab-separated output for scripts:
-`path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state`.
+Show all worktrees relative to the main checkout with their branch, dirty
+state, and lock state. `--porcelain` prints stable tab-separated output for
+scripts: `path<TAB>name<TAB>branch<TAB>main|linked|stray<TAB>state<TAB>locked|unlocked[:reason]`.
 
 ### `wt switch [worktree]` (alias: `cd`)
 
@@ -149,6 +149,17 @@ Flags for scripting:
 
 A stash created by `wt` lives in the *repository*, not the worktree, so it
 survives the removal — recover it from anywhere with `git stash pop`.
+
+Locked worktrees are refused unless you confirm the override (or pass
+`--yes`) — see `wt lock` below.
+
+### `wt lock [worktree]` / `wt unlock [worktree]`
+
+Lock a worktree to protect it from `wt remove` and `wt prune` (and their
+git equivalents) — handy for one on removable media, or one you want to
+leave untouched mid-review. Locking never affects the branch or its
+commits. `--reason "<text>"` records why; it shows up in `wt list` and
+`git worktree list`.
 
 ### `wt rename <worktree> <new-name>`
 
@@ -176,9 +187,12 @@ Print the shell wrapper function (see [Shell integration](#shell-integration-rec
 The desktop app (`gui/`, Wails v2) shares `internal/core` with the CLI —
 same behaviors, same safety copy:
 
-- worktree cards with dirty status and expandable changed-file lists
+- worktree cards with dirty status, lock status, and expandable
+  changed-file lists
 - create / rename / remove dialogs: the branch is always kept, dirty
-  trees get the explicit stash-or-discard choice
+  trees get the explicit stash-or-discard choice, locked trees need an
+  explicit override
+- lock / unlock worktrees, with an optional reason
 - a banner with a one-click move for worktrees living outside
   `.worktrees/`
 

@@ -89,11 +89,32 @@
     </form>
   </dialog>
 
+  <!-- Lock -->
+  <dialog id="dlg-lock">
+    <form method="dialog">
+      <h2>Lock worktree <span id="lock-name" class="mono"></span></h2>
+      <p class="muted small">Locking protects it from <code>wt remove</code> and <code>wt prune</code> (and their git equivalents) until you unlock it. It never affects the branch or its commits.</p>
+      <label>Reason <span class="muted small">(optional)</span>
+        <input id="lock-reason" placeholder="e.g. reviewing, on a USB drive" autocomplete="off" />
+      </label>
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="lock-confirm" value="ok" class="btn primary">Lock</button>
+      </footer>
+    </form>
+  </dialog>
+
   <!-- Remove -->
   <dialog id="dlg-remove">
     <form method="dialog">
       <h2>Remove worktree <span id="remove-name" class="mono"></span>?</h2>
       <p id="remove-branch-note" class="notice"></p>
+
+      <div id="remove-locked" hidden>
+        <p id="remove-locked-text" class="notice danger-notice"></p>
+        <label class="check"><input type="checkbox" id="remove-force-locked" required />
+          <span>Remove it anyway <span class="muted">(locking usually means "don't touch this" — make sure that's still true)</span></span></label>
+      </div>
 
       <div id="remove-dirty" hidden>
         <p><strong>It has uncommitted changes:</strong></p>
@@ -124,6 +145,12 @@
       <h2>Remove <span id="remove-bulk-count"></span> worktrees?</h2>
       <ul id="remove-bulk-list" class="changes"></ul>
       <p class="notice">Branches are NOT deleted — they stay in the repository and can be checked out again from any worktree.</p>
+
+      <div id="remove-bulk-locked" hidden>
+        <p id="remove-bulk-locked-text" class="notice danger-notice"></p>
+        <label class="check"><input type="checkbox" id="remove-bulk-force-locked" required />
+          <span>Remove them anyway <span class="muted">(locking usually means "don't touch this" — make sure that's still true)</span></span></label>
+      </div>
 
       <div id="remove-bulk-dirty" hidden>
         <p><strong>Some have uncommitted changes:</strong></p>

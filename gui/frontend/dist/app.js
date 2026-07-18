@@ -216,6 +216,11 @@ function card(wt, expand) {
 
   if (wt.isMain) row.appendChild(badge("main checkout", "main"));
   if (wt.stray) row.appendChild(badge("outside .worktrees", "stray"));
+  if (wt.locked) {
+    const lockBadge = badge("locked", "locked");
+    if (wt.lockReason) lockBadge.title = wt.lockReason;
+    row.appendChild(lockBadge);
+  }
 
   const branch = document.createElement("span");
   branch.className = "branch-chip mono";
@@ -249,6 +254,15 @@ function card(wt, expand) {
   );
   if (!wt.isMain) {
     actions.appendChild(btn("Rename…", () => openRenameDialog(wt)));
+    if (wt.locked) {
+      actions.appendChild(
+        btn("Unlock", async () => {
+          await action(() => api().UnlockWorktree(repo.mainPath, wt.path), "Unlocking worktree…");
+        })
+      );
+    } else {
+      actions.appendChild(btn("Lock…", () => openLockDialog(wt)));
+    }
     const rm = btn("Remove…", () => openRemoveDialog(wt));
     rm.classList.add("danger-hover");
     actions.appendChild(rm);
@@ -324,6 +338,22 @@ function updateCreateHint() {
   $("create-base-label").style.display = exists ? "none" : "";
 }
 
+// ---------- lock dialog ----------
+
+function openLockDialog(wt) {
+  const dlg = $("dlg-lock");
+  $("lock-name").textContent = wt.name;
+  $("lock-reason").value = "";
+
+  dlg.returnValue = "cancel";
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    const reason = $("lock-reason").value.trim();
+    await action(() => api().LockWorktree(repo.mainPath, wt.path, reason), "Locking worktree…");
+  };
+  dlg.showModal();
+}
+
 // ---------- remove dialog ----------
 
 function openRemoveDialog(wt) {
@@ -334,6 +364,15 @@ function openRemoveDialog(wt) {
   $("remove-branch-note").textContent = wt.branch
     ? `The branch "${wt.branch}" is NOT deleted — it stays in the repository and can be checked out again from any worktree.`
     : "This worktree is on a detached HEAD; no branch is affected.";
+
+  const lockedBox = $("remove-locked");
+  lockedBox.hidden = !wt.locked;
+  if (!lockedBox.hidden) {
+    $("remove-locked-text").textContent = wt.lockReason
+      ? `This worktree is locked (${wt.lockReason}).`
+      : "This worktree is locked.";
+    $("remove-force-locked").checked = false;
+  }
 
   const dirtyBox = $("remove-dirty");
   dirtyBox.hidden = !wt.dirty || wt.prunable;
@@ -363,7 +402,8 @@ function openRemoveDialog(wt) {
     const act = dirty ? dlg.querySelector('input[name="remove-action"]:checked').value : "";
     const del = hasBranch && $("remove-del-branch").checked;
     const force = del && $("remove-force-branch").checked;
-    await action(() => api().RemoveWorktree(repo.mainPath, wt.path, act, del, force), "Removing worktree…");
+    const forceLocked = wt.locked && $("remove-force-locked").checked;
+    await action(() => api().RemoveWorktree(repo.mainPath, wt.path, act, del, force, forceLocked), "Removing worktree…");
   };
   dlg.showModal();
 }
@@ -389,6 +429,17 @@ function openRemoveBulkDialog() {
     branch.textContent = wt.detached ? "detached HEAD" : wt.branch;
     li.append(name, branch);
     list.appendChild(li);
+  }
+
+  const lockedTargets = targets.filter((wt) => wt.locked);
+  const lockedBox = $("remove-bulk-locked");
+  lockedBox.hidden = lockedTargets.length === 0;
+  if (!lockedBox.hidden) {
+    $("remove-bulk-locked-text").textContent =
+      lockedTargets.length === 1
+        ? `${lockedTargets[0].name} is locked${lockedTargets[0].lockReason ? ` (${lockedTargets[0].lockReason})` : ""}.`
+        : `${lockedTargets.length} of these are locked.`;
+    $("remove-bulk-force-locked").checked = false;
   }
 
   const dirtyTargets = targets.filter((wt) => wt.dirty && !wt.prunable);
@@ -423,9 +474,10 @@ function openRemoveBulkDialog() {
     const act = dirty ? dlg.querySelector('input[name="remove-bulk-action"]:checked').value : "";
     const del = branchTargets.length > 0 && $("remove-bulk-del-branch").checked;
     const force = del && $("remove-bulk-force-branch").checked;
+    const forceLocked = lockedTargets.length > 0 && $("remove-bulk-force-locked").checked;
     const paths = targets.map((wt) => wt.path);
     const label = targets.length === 1 ? "Removing worktree…" : `Removing ${targets.length} worktrees…`;
-    await action(() => api().RemoveWorktrees(repo.mainPath, paths, act, del, force), label);
+    await action(() => api().RemoveWorktrees(repo.mainPath, paths, act, del, force, forceLocked), label);
     selected.clear();
   };
   dlg.showModal();

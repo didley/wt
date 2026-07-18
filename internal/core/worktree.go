@@ -112,7 +112,10 @@ func (r *Repo) AddWorktree(path, branch, baseRef string, createBranch bool) erro
 func (r *Repo) RemoveWorktree(path string, force bool) error {
 	args := []string{"worktree", "remove"}
 	if force {
-		args = append(args, "--force")
+		// A locked worktree needs --force twice ("remove -f -f" per git's
+		// own error message); a single --force is enough for dirty ones
+		// and passing it twice there is a harmless no-op.
+		args = append(args, "--force", "--force")
 	}
 	args = append(args, path)
 	_, err := Git(r.MainPath, args...)
@@ -131,6 +134,25 @@ func isMissingAdminFilesError(err error) bool {
 	}
 	return strings.Contains(gitErr.Stderr, "validation failed") &&
 		strings.Contains(gitErr.Stderr, "does not exist")
+}
+
+// LockWorktree marks the worktree at path as locked, protecting it from
+// `git worktree remove` and `prune` until explicitly unlocked. reason is
+// optional and shown by `git worktree list` and `wt list`.
+func (r *Repo) LockWorktree(path, reason string) error {
+	args := []string{"worktree", "lock"}
+	if reason != "" {
+		args = append(args, "--reason", reason)
+	}
+	args = append(args, path)
+	_, err := Git(r.MainPath, args...)
+	return err
+}
+
+// UnlockWorktree removes a lock placed by LockWorktree.
+func (r *Repo) UnlockWorktree(path string) error {
+	_, err := Git(r.MainPath, "worktree", "unlock", path)
+	return err
 }
 
 // MoveWorktree relocates a worktree directory.

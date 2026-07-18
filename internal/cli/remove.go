@@ -140,6 +140,33 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Friction point #1.5: locked worktrees need an explicit override.
+	var lockedTargets []core.Worktree
+	for _, t := range targets {
+		if t.Locked {
+			lockedTargets = append(lockedTargets, t)
+		}
+	}
+	if len(lockedTargets) > 0 {
+		for _, t := range lockedTargets {
+			fmt.Fprintf(os.Stderr, "%s is locked%s\n", stBold.Render(repo.WorktreeName(t)), reasonSuffix(t.LockReason))
+		}
+		switch {
+		case removeYes:
+			// --yes is explicit consent to override everything, locks included.
+		case !interactive():
+			return errors.New("worktree(s) are locked: unlock first with `wt unlock`, or re-run with --yes to remove anyway")
+		default:
+			ok, err := confirm("Remove locked worktree(s) anyway?", "Locking usually means \"don't touch this\" — make sure that's still true.", false)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return errAborted
+			}
+		}
+	}
+
 	// Friction point #2: removal never touches the branch — say so up front.
 	if !removeYes {
 		if interactive() {
@@ -187,7 +214,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 			}
 			fmt.Fprintf(os.Stderr, "Changes stashed for %q — recover them anytime with %s\n", name, stBold.Render("git stash pop"))
 		}
-		force := actions[i] != actKeepClean || t.Prunable
+		force := actions[i] != actKeepClean || t.Prunable || t.Locked
 		if err := repo.RemoveWorktree(t.Path, force); err != nil {
 			warnf("could not remove %q: %v", name, err)
 			continue

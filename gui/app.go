@@ -44,6 +44,8 @@ type WorktreeView struct {
 	Prunable   bool         `json:"prunable"`
 	Stray      bool         `json:"stray"`
 	Dirty      bool         `json:"dirty"`
+	Locked     bool         `json:"locked"`
+	LockReason string       `json:"lockReason"`
 	Changes    []ChangeView `json:"changes"`
 }
 
@@ -106,6 +108,8 @@ func (a *App) LoadRepo(path string) (*RepoView, error) {
 			Prunable:   w.Prunable,
 			MoveTarget: strayTargets[w.Path],
 			Stray:      strayTargets[w.Path] != "",
+			Locked:     w.Locked,
+			LockReason: w.LockReason,
 			Changes:    []ChangeView{},
 		}
 		checkedOut[w.Branch] = true
@@ -182,8 +186,9 @@ func (a *App) CreateWorktree(repoPath, branch, base string) (string, error) {
 
 // RemoveWorktree removes a worktree. action must be "stash" or "discard"
 // when the worktree is dirty, "" when clean. The branch is only deleted
-// when explicitly requested.
-func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forceDeleteBranch bool) (string, error) {
+// when explicitly requested. forceLocked must be true to remove a locked
+// worktree; otherwise a locked worktree is refused.
+func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forceDeleteBranch, forceLocked bool) (string, error) {
 	repo, err := core.Discover(repoPath)
 	if err != nil {
 		return "", err
@@ -207,7 +212,11 @@ func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forc
 	}
 	name := repo.WorktreeName(*target)
 
-	// Re-check dirtiness server-side: the view the user acted on may be stale.
+	// Re-check locked/dirty state server-side: the view the user acted on
+	// may be stale.
+	if target.Locked && !forceLocked {
+		return "", fmt.Errorf("%q is locked%s — unlock it first, or confirm removal anyway", name, lockReasonSuffix(target.LockReason))
+	}
 	if !target.Prunable {
 		changes, err := core.WorktreeStatus(target.Path)
 		if err != nil {
@@ -224,7 +233,7 @@ func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forc
 			return "", fmt.Errorf("stash failed, worktree untouched: %w", err)
 		}
 	}
-	force := action != "" || target.Prunable
+	force := action != "" || target.Prunable || target.Locked
 	if err := repo.RemoveWorktree(target.Path, force); err != nil {
 		return "", err
 	}
@@ -249,7 +258,7 @@ func (a *App) RemoveWorktree(repoPath, wtPath, action string, deleteBranch, forc
 // action (stash/discard/"") and branch-deletion choice to every one of them.
 // Individual failures don't stop the rest; they're joined into the returned
 // error alongside a summary of what did succeed.
-func (a *App) RemoveWorktrees(repoPath string, wtPaths []string, action string, deleteBranch, forceDeleteBranch bool) (string, error) {
+func (a *App) RemoveWorktrees(repoPath string, wtPaths []string, action string, deleteBranch, forceDeleteBranch, forceLocked bool) (string, error) {
 	repo, err := core.Discover(repoPath)
 	if err != nil {
 		return "", err
@@ -272,6 +281,10 @@ func (a *App) RemoveWorktrees(repoPath string, wtPaths []string, action string, 
 		}
 		name := repo.WorktreeName(*target)
 
+		if target.Locked && !forceLocked {
+			errs = append(errs, fmt.Errorf("%s: is locked%s", name, lockReasonSuffix(target.LockReason)))
+			continue
+		}
 		if !target.Prunable {
 			changes, err := core.WorktreeStatus(target.Path)
 			if err != nil {
@@ -291,7 +304,7 @@ func (a *App) RemoveWorktrees(repoPath string, wtPaths []string, action string, 
 			}
 		}
 
-		force := action != "" || target.Prunable
+		force := action != "" || target.Prunable || target.Locked
 		if err := repo.RemoveWorktree(target.Path, force); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", name, err))
 			continue
@@ -358,6 +371,76 @@ func (a *App) RenameWorktree(repoPath, wtPath, newName string, renameBranch bool
 		msg += fmt.Sprintf(" The branch is still %q.", target.Branch)
 	}
 	return msg, nil
+}
+
+// LockWorktree locks a worktree, protecting it from removal and pruning
+// until explicitly unlocked. reason is optional.
+func (a *App) LockWorktree(repoPath, wtPath, reason string) (string, error) {
+	repo, err := core.Discover(repoPath)
+	if err != nil {
+		return "", err
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return "", err
+	}
+	var target *core.Worktree
+	for i := range wts {
+		if wts[i].Path == wtPath && !wts[i].IsMain {
+			target = &wts[i]
+			break
+		}
+	}
+	if target == nil {
+		return "", fmt.Errorf("no worktree at %s", wtPath)
+	}
+	if target.Locked {
+		return "", fmt.Errorf("%q is already locked%s", repo.WorktreeName(*target), lockReasonSuffix(target.LockReason))
+	}
+	if err := repo.LockWorktree(target.Path, reason); err != nil {
+		return "", err
+	}
+	name := repo.WorktreeName(*target)
+	if reason != "" {
+		return fmt.Sprintf("Locked worktree %q (%s).", name, reason), nil
+	}
+	return fmt.Sprintf("Locked worktree %q.", name), nil
+}
+
+// UnlockWorktree removes a lock placed by LockWorktree.
+func (a *App) UnlockWorktree(repoPath, wtPath string) (string, error) {
+	repo, err := core.Discover(repoPath)
+	if err != nil {
+		return "", err
+	}
+	wts, err := repo.Worktrees()
+	if err != nil {
+		return "", err
+	}
+	var target *core.Worktree
+	for i := range wts {
+		if wts[i].Path == wtPath && !wts[i].IsMain {
+			target = &wts[i]
+			break
+		}
+	}
+	if target == nil {
+		return "", fmt.Errorf("no worktree at %s", wtPath)
+	}
+	if !target.Locked {
+		return "", fmt.Errorf("%q is not locked", repo.WorktreeName(*target))
+	}
+	if err := repo.UnlockWorktree(target.Path); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Unlocked worktree %q.", repo.WorktreeName(*target)), nil
+}
+
+func lockReasonSuffix(reason string) string {
+	if reason == "" {
+		return ""
+	}
+	return fmt.Sprintf(" (%s)", reason)
 }
 
 // MoveStrays moves every worktree living outside <repo>.worktrees/ into it.

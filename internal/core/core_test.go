@@ -161,6 +161,60 @@ func TestWorktreeLifecycle(t *testing.T) {
 	}
 }
 
+func TestLockUnlockWorktree(t *testing.T) {
+	repo := newTestRepo(t)
+	path := repo.ConventionalPath("feature-lock")
+	if err := os.MkdirAll(repo.WorktreesDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddWorktree(path, "feature/lock", "main", true); err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+
+	if err := repo.LockWorktree(path, "keep me around"); err != nil {
+		t.Fatalf("LockWorktree: %v", err)
+	}
+
+	wts, err := repo.Worktrees()
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked := wts[1]
+	if !linked.Locked || linked.LockReason != "keep me around" {
+		t.Errorf("worktree not locked as expected: %+v", linked)
+	}
+
+	if err := repo.RemoveWorktree(path, false); err == nil {
+		t.Error("RemoveWorktree without force succeeded on a locked worktree, want error")
+	}
+	if err := repo.RemoveWorktree(path, true); err != nil {
+		t.Fatalf("RemoveWorktree with force on a locked worktree: %v", err)
+	}
+
+	path2 := repo.ConventionalPath("feature-unlock")
+	if err := repo.AddWorktree(path2, "feature/unlock", "main", true); err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+	if err := repo.LockWorktree(path2, ""); err != nil {
+		t.Fatalf("LockWorktree: %v", err)
+	}
+	if err := repo.UnlockWorktree(path2); err != nil {
+		t.Fatalf("UnlockWorktree: %v", err)
+	}
+	wts, err = repo.Worktrees()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range wts {
+		if w.Path == path2 && w.Locked {
+			t.Errorf("worktree still locked after UnlockWorktree: %+v", w)
+		}
+	}
+	if err := repo.RemoveWorktree(path2, false); err != nil {
+		t.Fatalf("RemoveWorktree on unlocked worktree: %v", err)
+	}
+}
+
 func TestRemoveWorktreeMissingAdminFiles(t *testing.T) {
 	repo := newTestRepo(t)
 	path := repo.ConventionalPath("feature-y")

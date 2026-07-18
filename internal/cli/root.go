@@ -36,7 +36,7 @@ Run wt with no arguments to list the worktrees of the current repo.`,
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "never prompt; fail or warn instead")
-	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
+	rootCmd.AddCommand(createCmd, listCmd, removeCmd, renameCmd, switchCmd, lockCmd, unlockCmd, doctorCmd, pruneCmd, shellInitCmd, genManCmd)
 }
 
 func Execute() {
