@@ -2,19 +2,30 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
+	"unicode/utf8"
 
 	"github.com/didley/wt/internal/core"
 	"github.com/spf13/cobra"
 )
 
-var listPorcelain bool
+var (
+	listPorcelain bool
+	listVerbose   bool
+)
 
-// connectorWidth is the display width of the "├─ "/"└─ " tree connectors
-// prefixed to linked worktree names.
-const connectorWidth = 3
+// strayMarker flags a stray (out-of-convention) worktree's name/dir column,
+// and prefixes the footer hint that explains it — a footnote-style marker
+// rather than the path-prefixed "!" this used to be.
+const strayMarker = "*"
 
 // shortHeadLen is how many characters of a detached HEAD's SHA to show.
 const shortHeadLen = 7
+
+// verboseHelp documents --verbose; shared between listCmd, rootCmd and the
+// interactive "what next?" menu's "list --verbose" option so the wording
+// only lives in one place.
+const verboseHelp = "show full paths, directory names and commit hashes"
 
 var listCmd = &cobra.Command{
 	Use:     "list",
@@ -28,11 +39,15 @@ var listCmd = &cobra.Command{
 
 func init() {
 	listCmd.Flags().BoolVar(&listPorcelain, "porcelain", false, "stable tab-separated output for scripts")
+	listCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp)
+	rootCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp+" (same as `wt list -v`)")
 }
 
 type listRow struct {
 	wt     core.Worktree
 	name   string
+	dir    string // final directory of the worktree's path, for quick visual scanning
+	hash   string
 	branch string
 	state  string
 	dirty  bool
@@ -65,7 +80,11 @@ func runList() error {
 		printPorcelain(rows)
 		return nil
 	}
-	renderList(repo, rows)
+	if listVerbose {
+		renderVerbose(rows)
+		return nil
+	}
+	renderNarrow(rows)
 	return nil
 }
 
@@ -79,14 +98,23 @@ func buildListRows(repo *core.Repo, wts []core.Worktree) []listRow {
 
 	rows := make([]listRow, 0, len(wts))
 	for _, w := range wts {
-		row := listRow{wt: w, name: repo.WorktreeName(w), branch: w.Branch, stray: strayPaths[w.Path]}
-		if w.Detached {
-			row.branch = "detached @ " + shortHead(w.Head)
+		row := listRow{
+			wt: w, name: repo.WorktreeName(w), dir: filepath.Base(w.Path),
+			hash: shortHead(w.Head), branch: branchLabel(w), stray: strayPaths[w.Path],
 		}
 		setRowState(&row, w)
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+// branchLabel is the row's branch column, bracketed like `git worktree
+// list`'s own output.
+func branchLabel(w core.Worktree) string {
+	if w.Detached {
+		return "(detached HEAD)"
+	}
+	return "[" + w.Branch + "]"
 }
 
 func setRowState(row *listRow, w core.Worktree) {
@@ -116,84 +144,140 @@ func printPorcelain(rows []listRow) {
 		if r.wt.Locked {
 			locked = "locked:" + r.wt.LockReason
 		}
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, r.branch, kind, r.state, locked)
+		branch := r.wt.Branch
+		if r.wt.Detached {
+			branch = "detached @ " + r.hash
+		}
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.wt.Path, r.name, branch, kind, r.state, locked, r.wt.Head)
 	}
 }
 
-// groupListRows splits rows into the main worktree, linked worktrees, and
-// stray (out-of-convention) worktrees.
-func groupListRows(rows []listRow) (listRow, []listRow, []listRow) {
-	var main listRow
-	var linked, stray []listRow
+// nameLabel is the row's NAME column (narrow view): the worktree's
+// conventional name, flagged with strayMarker when out of convention.
+func nameLabel(r listRow) string {
+	if r.stray {
+		return r.name + strayMarker
+	}
+	return r.name
+}
+
+// dirLabel is the row's DIR column (verbose view): the worktree's final
+// path segment, flagged with strayMarker when out of convention.
+func dirLabel(r listRow) string {
+	if r.stray {
+		return r.dir + strayMarker
+	}
+	return r.dir
+}
+
+// maxWidth returns the widest of header and every value's display width.
+func maxWidth(header string, values ...string) int {
+	width := utf8.RuneCountInString(header)
+	for _, v := range values {
+		if w := utf8.RuneCountInString(v); w > width {
+			width = w
+		}
+	}
+	return width
+}
+
+func renderNarrow(rows []listRow) {
+	names := make([]string, len(rows))
+	branches := make([]string, len(rows))
+	for i, r := range rows {
+		names[i] = nameLabel(r)
+		branches[i] = r.branch
+	}
+	nameWidth := maxWidth("NAME", names...)
+	branchWidth := maxWidth("BRANCH", branches...)
+
+	fmt.Println(stDim.Render(fmt.Sprintf("%-*s  %-*s  %s", nameWidth, "NAME", branchWidth, "BRANCH", "STATE")))
+
+	anyStray := false
 	for _, r := range rows {
+		label := nameLabel(r)
+		styled := label
 		switch {
-		case r.wt.IsMain:
-			main = r
 		case r.stray:
-			stray = append(stray, r)
-		default:
-			linked = append(linked, r)
+			styled = stWarn.Render(label)
+			anyStray = true
+		case r.wt.IsMain:
+			styled = stBold.Render(label)
 		}
+
+		fmt.Printf("%s%s  %-*s  %s\n", styled, colorPad(label, nameWidth), branchWidth, r.branch, rowState(r))
 	}
-	return main, linked, stray
+	printFooter(rows, anyStray)
 }
 
-// columnWidths returns the name and branch column widths needed to align
-// every row, accounting for the tree connector prefix on linked names.
-func columnWidths(main listRow, linked, stray []listRow) (int, int) {
-	nameWidth := len(main.name)
-	for _, r := range linked {
-		if w := len(r.name) + connectorWidth; w > nameWidth {
-			nameWidth = w
-		}
+func renderVerbose(rows []listRow) {
+	paths := make([]string, len(rows))
+	dirs := make([]string, len(rows))
+	branches := make([]string, len(rows))
+	for i, r := range rows {
+		paths[i] = r.wt.Path
+		dirs[i] = dirLabel(r)
+		branches[i] = r.branch
 	}
-	branchWidth := len(main.branch)
-	for _, r := range append(linked, stray...) {
-		if len(r.branch) > branchWidth {
-			branchWidth = len(r.branch)
+	pathWidth := maxWidth("PATH", paths...)
+	dirWidth := maxWidth("DIR", dirs...)
+	branchWidth := maxWidth("BRANCH", branches...)
+
+	header := fmt.Sprintf(
+		"%-*s  %-*s  %-*s  %-*s  %s",
+		pathWidth, "PATH", dirWidth, "DIR", shortHeadLen, "HASH", branchWidth, "BRANCH", "STATE",
+	)
+	fmt.Println(stDim.Render(header))
+
+	anyStray := false
+	for _, r := range rows {
+		path := r.wt.Path
+		styledPath := path
+		if r.wt.IsMain {
+			styledPath = stBold.Render(path)
 		}
+		dir := dirLabel(r)
+		styledDir := dir
+		if r.stray {
+			styledDir = stWarn.Render(dir)
+			anyStray = true
+		}
+
+		fmt.Printf("%s%s  %s%s  %-*s  %-*s  %s\n",
+			styledPath, colorPad(path, pathWidth), styledDir, colorPad(dir, dirWidth),
+			shortHeadLen, r.hash, branchWidth, r.branch, rowState(r))
 	}
-	return nameWidth, branchWidth
+	printFooter(rows, anyStray)
 }
 
-func renderList(repo *core.Repo, rows []listRow) {
-	main, linked, stray := groupListRows(rows)
-	width, bwidth := columnWidths(main, linked, stray)
-
-	line := func(paddedName, branch, state string, dirty bool, locked string) {
-		st := stGood.Render(state)
-		if dirty {
-			st = stWarn.Render(state)
-		}
-		if locked != "" {
-			st += stWarn.Render(locked)
-		}
-		fmt.Printf("%s  %-*s  %s\n", paddedName, bwidth, branch, st)
+// rowState renders a row's colored state cell, including any lock suffix.
+func rowState(r listRow) string {
+	st := stGood.Render(r.state)
+	if r.dirty {
+		st = stWarn.Render(r.state)
 	}
-
-	line(stBold.Render(main.name)+colorPad(main.name, width), main.branch, main.state, main.dirty, main.lockSuffix())
-	if len(linked) > 0 {
-		fmt.Println(stDim.Render(repo.Name() + ".worktrees/"))
-		for i, r := range linked {
-			conn := "├─ "
-			if i == len(linked)-1 {
-				conn = "└─ "
-			}
-			line(stDim.Render(conn)+r.name+colorPad(conn+r.name, width), r.branch, r.state, r.dirty, r.lockSuffix())
-		}
-	} else if len(stray) == 0 {
-		fmt.Println(stDim.Render("no worktrees yet — create one with `wt add`"))
+	if locked := r.lockSuffix(); locked != "" {
+		st += stWarn.Render(locked)
 	}
-	for _, r := range stray {
-		label := stWarn.Render("! " + r.wt.Path + "  (outside .worktrees — run `wt organize`)")
-		fmt.Printf("%s  %-*s  %s\n", label, bwidth, r.branch, r.state+r.lockSuffix())
+	return st
+}
+
+// printFooter prints the stray-worktree hint (once, marked the same as the
+// rows it refers to) or, failing that, a hint when there's nothing but the
+// main checkout yet.
+func printFooter(rows []listRow, anyStray bool) {
+	switch {
+	case anyStray:
+		fmt.Println(stDim.Render(strayMarker + " Worktree(s) not in .worktrees dir, run `wt organize` to move."))
+	case len(rows) <= 1:
+		fmt.Println(stDim.Render("no other worktrees yet — create one with `wt add`"))
 	}
 }
 
 // colorPad returns the spaces needed to pad a styled cell to width, since
 // %-*s can't account for invisible ANSI escape codes.
 func colorPad(visible string, width int) string {
-	pad := width - len(visible)
+	pad := width - utf8.RuneCountInString(visible)
 	if pad <= 0 {
 		return ""
 	}
