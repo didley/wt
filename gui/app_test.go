@@ -2,14 +2,25 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
+// withConfigDir redirects os.UserConfigDir() into a temp dir and returns the
+// directory configPath() is expected to resolve under. The env var
+// UserConfigDir honors is platform-specific: XDG_CONFIG_HOME on Linux, HOME
+// (for ~/Library/Application Support) on Darwin.
 func withConfigDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	return dir
+	switch runtime.GOOS {
+	case "darwin":
+		t.Setenv("HOME", dir)
+		return filepath.Join(dir, "Library", "Application Support")
+	default:
+		t.Setenv("XDG_CONFIG_HOME", dir)
+		return dir
+	}
 }
 
 func TestConfigPath(t *testing.T) {

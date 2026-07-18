@@ -45,7 +45,9 @@ func TestRunShellInitBash(t *testing.T) {
 	t.Cleanup(func() { os.Stdout = origStdout })
 
 	runErr := runShellInit(shellInitCmd, []string{"bash"})
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
 	os.Stdout = origStdout
 
 	out, _ := io.ReadAll(r)

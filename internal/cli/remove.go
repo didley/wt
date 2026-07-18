@@ -75,7 +75,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		if !interactive() {
-			return errors.New("worktree name required when not running interactively: wt remove <worktree>...")
+			return errors.New("worktree name required when not running interactively: wt remove <worktree>")
 		}
 		targets, err = pickWorktrees(repo, candidates, "Remove which worktree(s)?")
 		if err != nil {
