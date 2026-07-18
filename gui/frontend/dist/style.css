@@ -28,9 +28,7 @@ body {
 .mono, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
 /* Informational text the user is likely to copy (paths, names, branches) —
    overrides the app-wide user-select: none on body. */
-.mono, code, #repo-name, #repo-path, .wt-name {
-  user-select: text; -webkit-user-select: text;
-}
+.user-selectable { user-select: text; -webkit-user-select: text; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85em; }
 .danger { color: var(--danger); }
@@ -234,6 +232,5 @@ label.check.indent { margin-left: 26px; }
   background: var(--bg3); border: 1px solid var(--border); border-left: 4px solid var(--good);
   border-radius: 8px; padding: 10px 14px; max-width: 420px; font-size: 0.9em;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  user-select: text; -webkit-user-select: text;
 }
 .toast.error { border-left-color: var(--danger); }
