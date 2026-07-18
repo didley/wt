@@ -15,6 +15,9 @@
       </div>
       <nav id="recents"></nav>
       <div class="sidebar-foot">
+        <button id="settings-btn" class="btn settings-btn" title="Change what worktrees open with">
+          <span class="gear" aria-hidden="true">⚙</span> <span id="settings-btn-label">Open in File manager</span>
+        </button>
         <button id="about-btn" class="icon-btn" title="About wt" aria-label="About wt">i</button>
       </div>
     </aside>
@@ -193,6 +196,39 @@
       <footer>
         <button type="submit" formnovalidate value="cancel" class="btn">Cancel</button>
         <button id="rename-confirm" value="ok" class="btn primary">Rename</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog id="dlg-settings">
+    <form method="dialog">
+      <h2>Settings</h2>
+      <label>Open worktree with
+        <select id="open-target">
+          <option value="">File manager</option>
+          <option value="code">VS Code</option>
+          <option value="cursor">Cursor</option>
+          <option value="zed">Zed</option>
+          <option value="subl">Sublime Text</option>
+          <option value="custom">Custom command…</option>
+        </select>
+      </label>
+      <p id="open-target-linux-note" class="muted small" hidden>
+        Editors are launched via <code>flatpak-spawn --host</code>, so they run with your host system's PATH, not the
+        sandbox's. This only finds editors installed as a normal host binary (a distro package, an official install
+        script, etc). If your editor is itself installed as a Flatpak (e.g. from Flathub), it won't be on that PATH —
+        pick <strong>Custom command…</strong> below instead and use its Flatpak app ID, e.g.
+        <code>flatpak run dev.zed.Zed {path}</code> for Zed or <code>flatpak run com.visualstudio.code {path}</code>
+        for VS Code.
+      </p>
+      <label id="open-target-custom-label">Custom command
+        <input id="open-target-custom" placeholder="code {path}" autocomplete="off" />
+        <span class="muted small">Use <code>{path}</code> for the worktree path, or it's appended as the last argument.</span>
+      </label>
+      <footer>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="settings-confirm" value="ok" class="btn primary">Save</button>
       </footer>
     </form>
   </dialog>

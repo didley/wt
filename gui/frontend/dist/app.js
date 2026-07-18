@@ -9,6 +9,28 @@ let recents = [];
 let selected = new Set(); // paths of worktrees checked for bulk removal
 let appVersion = "dev";
 let appOS = "linux";
+let openTarget = { target: "", customOpenCmd: "" };
+
+// Display label for each open target, shared by the Settings dropdown's
+// implicit labels (in index.html) and the per-card "Open in …" button.
+const OPEN_TARGET_LABELS = {
+  "": "File manager",
+  code: "VS Code",
+  cursor: "Cursor",
+  zed: "Zed",
+  subl: "Sublime Text",
+  custom: "custom command",
+};
+
+function openTargetLabel() {
+  return OPEN_TARGET_LABELS[openTarget.target] ?? "File manager";
+}
+
+// Keeps the sidebar settings button's own label ("Open in …") in sync, so
+// the current target is visible without opening the dialog.
+function updateSettingsButtonLabel() {
+  $("settings-btn-label").textContent = `Open in ${openTargetLabel()}`;
+}
 
 // ---------- boot ----------
 
@@ -20,6 +42,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch {
     // leave the defaults
   }
+  try {
+    openTarget = await api().GetOpenTarget();
+  } catch {
+    // leave the default (file manager)
+  }
+  updateSettingsButtonLabel();
   try {
     recents = await api().RecentRepos();
     renderRecents();
@@ -59,11 +87,16 @@ async function refreshIfChanged() {
 
 function wireStaticHandlers() {
   $("about-btn").addEventListener("click", openAboutDialog);
+  $("settings-btn").addEventListener("click", openSettingsDialog);
   // A click that lands on the <dialog> element itself (not its content) is
   // a click on the backdrop, since the dialog fills the content box.
   $("dlg-about").addEventListener("click", (ev) => {
     if (ev.target === $("dlg-about")) $("dlg-about").close();
   });
+  $("dlg-settings").addEventListener("click", (ev) => {
+    if (ev.target === $("dlg-settings")) $("dlg-settings").close();
+  });
+  $("open-target").addEventListener("change", updateOpenTargetCustomVisibility);
   $("about-repo-link").addEventListener("click", () => api().OpenURL("https://github.com/didley/wt"));
   $("about-author-link").addEventListener("click", () => api().OpenURL("https://github.com/didley"));
   $("open-repo").addEventListener("click", async () => {
@@ -263,7 +296,9 @@ function card(wt, expand) {
 
   const actions = document.createElement("div");
   actions.className = "card-actions";
-  actions.appendChild(btn("Open", () => api().OpenPath(wt.path).catch((e) => toast(String(e), true))));
+  actions.appendChild(
+    btn(`Open in ${openTargetLabel()}`, () => api().OpenPath(wt.path).catch((e) => toast(String(e), true)))
+  );
   actions.appendChild(
     btn("Copy path", async () => {
       await api().CopyPath(wt.path);
@@ -580,6 +615,39 @@ function openRenameDialog(wt) {
     if (!newName || newName === wt.name) return;
     const renameBranch = hasBranch && $("rename-branch-too").checked;
     await action(() => api().RenameWorktree(repo.mainPath, wt.path, newName, renameBranch), "Renaming worktree…");
+  };
+  dlg.showModal();
+}
+
+// ---------- settings dialog ----------
+
+function updateOpenTargetCustomVisibility() {
+  $("open-target-custom-label").style.display = $("open-target").value === "custom" ? "" : "none";
+}
+
+async function openSettingsDialog() {
+  const dlg = $("dlg-settings");
+  openTarget = await api().GetOpenTarget();
+  $("open-target").value = openTarget.target;
+  $("open-target-custom").value = openTarget.customOpenCmd;
+  updateOpenTargetCustomVisibility();
+  // The GUI runs in a Flatpak sandbox only on Linux — macOS builds run
+  // editors directly, so this detail would be noise there.
+  $("open-target-linux-note").hidden = appOS !== "linux";
+
+  dlg.returnValue = "cancel";
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    const newTarget = $("open-target").value;
+    const newCustomCmd = $("open-target-custom").value.trim();
+    try {
+      await api().SetOpenTarget(newTarget, newCustomCmd);
+      openTarget = { target: newTarget, customOpenCmd: newCustomCmd };
+      updateSettingsButtonLabel();
+      if (repo) renderRepo();
+    } catch (e) {
+      toast(String(e), true);
+    }
   };
   dlg.showModal();
 }

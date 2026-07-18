@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +43,18 @@ func TestLoadConfig_Missing(t *testing.T) {
 	cfg := loadConfig()
 	if len(cfg.Recent) != 0 {
 		t.Errorf("loadConfig() on missing file = %+v, want empty", cfg)
+	}
+}
+
+// On a first-ever launch (no gui.json yet), the open target must default to
+// the file manager — openTargetFileManager is the zero value, so this is
+// really a guard against that invariant getting broken later.
+func TestGetOpenTarget_DefaultsToFileManagerOnFirstLaunch(t *testing.T) {
+	withConfigDir(t)
+	a := &App{}
+	info := a.GetOpenTarget()
+	if info.Target != openTargetFileManager {
+		t.Errorf("GetOpenTarget() on first launch = %+v, want Target %q", info, openTargetFileManager)
 	}
 }
 
@@ -141,5 +155,94 @@ func TestPlural(t *testing.T) {
 	}
 	if got := plural(2); got != pluralEntries {
 		t.Errorf("plural(2) = %q, want %q", got, "entries")
+	}
+}
+
+func TestGetSetOpenTarget(t *testing.T) {
+	withConfigDir(t)
+	a := &App{}
+
+	info := a.GetOpenTarget()
+	if info.Target != "" || info.CustomOpenCmd != "" {
+		t.Errorf("GetOpenTarget() on missing config = %+v, want empty", info)
+	}
+
+	if err := a.SetOpenTarget(openTargetCode, ""); err != nil {
+		t.Fatalf("SetOpenTarget(code) error: %v", err)
+	}
+	info = a.GetOpenTarget()
+	if info.Target != openTargetCode {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(code) = %q, want %q", info.Target, openTargetCode)
+	}
+
+	const customTemplate = "code {path}"
+	if err := a.SetOpenTarget(openTargetCustom, customTemplate); err != nil {
+		t.Fatalf("SetOpenTarget(custom) error: %v", err)
+	}
+	info = a.GetOpenTarget()
+	if info.Target != openTargetCustom || info.CustomOpenCmd != customTemplate {
+		t.Errorf("GetOpenTarget() after SetOpenTarget(custom) = %+v", info)
+	}
+
+	if err := a.SetOpenTarget(openTargetCustom, ""); err == nil {
+		t.Error("SetOpenTarget(custom, \"\") should require a command")
+	}
+	if err := a.SetOpenTarget("not-a-real-target", ""); err == nil {
+		t.Error("SetOpenTarget(unknown target) should error")
+	}
+}
+
+func TestOpenWithBinary(t *testing.T) {
+	a := &App{ctx: context.Background()}
+
+	if err := a.openWithBinary("true", "/some/path"); err != nil {
+		t.Errorf("openWithBinary(true) error: %v", err)
+	}
+	err := a.openWithBinary("nonexistent-binary-xyz", "/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("openWithBinary(missing) error = %v, want \"not found on PATH\"", err)
+	}
+}
+
+func TestOpenWithCustomCommand(t *testing.T) {
+	a := &App{ctx: context.Background()}
+
+	if err := a.openWithCustomCommand("true {path}", "/some/path"); err != nil {
+		t.Errorf("openWithCustomCommand with placeholder error: %v", err)
+	}
+	if err := a.openWithCustomCommand("true", "/some/path"); err != nil {
+		t.Errorf("openWithCustomCommand without placeholder error: %v", err)
+	}
+	if err := a.openWithCustomCommand("", "/some/path"); err == nil {
+		t.Error("openWithCustomCommand(\"\") should error")
+	}
+	if err := a.openWithCustomCommand("   ", "/some/path"); err == nil {
+		t.Error("openWithCustomCommand(whitespace) should error")
+	}
+	err := a.openWithCustomCommand("nonexistent-binary-xyz {path}", "/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("openWithCustomCommand(missing binary) error = %v, want \"not found on PATH\"", err)
+	}
+}
+
+func TestOpenPath_RoutesToConfiguredTarget(t *testing.T) {
+	withConfigDir(t)
+	a := &App{ctx: context.Background()}
+
+	if err := a.SetOpenTarget("zed", ""); err != nil {
+		t.Fatalf("SetOpenTarget error: %v", err)
+	}
+	// "zed" isn't installed in the test environment, so OpenPath should
+	// surface the not-found error rather than silently doing nothing.
+	err := a.OpenPath("/some/path")
+	if err == nil || !strings.Contains(err.Error(), "not found on PATH") {
+		t.Errorf("OpenPath() with unset editor = %v, want \"not found on PATH\"", err)
+	}
+
+	if err := a.SetOpenTarget(openTargetCustom, "true {path}"); err != nil {
+		t.Fatalf("SetOpenTarget error: %v", err)
+	}
+	if err := a.OpenPath("/some/path"); err != nil {
+		t.Errorf("OpenPath() with custom command error: %v", err)
 	}
 }
