@@ -58,7 +58,11 @@ func init() {
 		"", "stable tab-separated output for scripts, versioned (default "+porcelainV1+")")
 	listCmd.Flags().Lookup("porcelain").NoOptDefVal = porcelainV1
 	listCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp)
-	rootCmd.Flags().BoolVarP(&listVerbose, "verbose", "v", false, verboseHelp+" (same as `wt list -v`)")
+	// No -v shorthand here: cobra reserves -v for --version (auto-added
+	// since rootCmd.Version is set) as long as no other flag on rootCmd
+	// claims it first — bare `wt -v`/`wt --version` should print the
+	// version, matching every other CLI's convention, not verbose list.
+	rootCmd.Flags().BoolVar(&listVerbose, "verbose", false, verboseHelp+" (same as `wt list -v`)")
 }
 
 type listRow struct {
