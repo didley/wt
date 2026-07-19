@@ -4,7 +4,6 @@
 [![coverage](https://img.shields.io/badge/coverage-core%2095%25%20%C2%B7%20cli%2070%25%20%C2%B7%20gui%2075%25-brightgreen)](scripts/coverage-thresholds.sh)
 <!-- coverage-badge:end -->
 
-<img width="1071" height="732" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
 
 `wt` removes the friction from git worktrees. It ships as a **CLI** and a
 **desktop app (GUI)** built on the same core, so both give the same
@@ -12,20 +11,10 @@ guarantees. Every worktree of a repository lives in **one predictable
 place** — a sibling directory named `<repo>.worktrees/` — and creating,
 listing, switching, renaming and removing worktrees is painless:
 
-```
-~/Developer/my-app                     ← main checkout
-~/Developer/my-app.worktrees/
-├─ fix-login                           ← worktree for branch fix-login
-└─ feature-search                      ← worktree for branch feature/search
-```
+## Screenshots
+<img width="500" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
 
-```console
-$ wt list
-my-app             main            clean
-my-app.worktrees/
-├─ fix-login       fix-login       2 modified, 1 untracked
-└─ feature-search  feature/search  clean
-```
+<img width="500" alt="wt-cli-screenshot" src="https://github.com/user-attachments/assets/26942ec6-1d1a-4d5b-a495-d451a6a5fa1f" />
 
 ## Why
 
