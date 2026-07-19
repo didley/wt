@@ -52,7 +52,8 @@ three things routinely trip people up. `wt` is designed around them:
 ### macOS — desktop app + CLI
 
 ```sh
-brew install didley/tap/wt
+brew tap didley/tap
+brew install --cask wt
 ```
 
 The cask installs `wt.app` and the `wt` command-line tool together. The
@@ -76,7 +77,8 @@ flatpak install ./wt.flatpak          # runtime deps come from Flathub
 If you just want the command-line tool (works with Linuxbrew):
 
 ```sh
-brew install didley/tap/wt-cli
+brew tap didley/tap
+brew install wt-cli
 ```
 
 Or with Go:
