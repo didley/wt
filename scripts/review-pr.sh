@@ -135,7 +135,7 @@ while IFS= read -r name; do
     if ! grep -qxF "$hit_file" "$changed_files"; then
       echo "$name -> $hit_file:$hit_line: $hit_text" >>"$drift_hits"
     fi
-  done < <(git grep -nF -- "$name" -- ':!man' 2>/dev/null || true)
+  done < <(git grep -nF -- "$name" -- ':!man' ':!scripts/review-pr.sh' 2>/dev/null || true)
 done <"$old_names"
 
 if [ -s "$drift_hits" ]; then
