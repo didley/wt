@@ -87,6 +87,13 @@ check: test testGui vet
 man:
     go run ./cmd/wt gen-man man
 
+# Review a GitHub PR: fetch its context, run the CI gate (just check +
+# just lint) against its head ref in an isolated worktree, and scan the
+# diff for renamed commands/files other tracked files still reference by
+# their old name. e.g. `just reviewPr 7`.
+reviewPr pr:
+    ./scripts/review-pr.sh {{ pr }}
+
 # Build the GUI Flatpak and install it for the current user (needs flatpak-builder; run from the host).
 flatpak:
     flatpak-builder --force-clean --user --install \
