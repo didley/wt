@@ -1,5 +1,9 @@
 # wt — git worktrees, ergonomically
 
+<!-- coverage-badge:start -->
+[![coverage](https://img.shields.io/badge/coverage-core%2095%25%20%C2%B7%20cli%2070%25%20%C2%B7%20gui%2075%25-brightgreen)](scripts/coverage-thresholds.sh)
+<!-- coverage-badge:end -->
+
 <img width="1071" height="732" alt="wt-screenshot" src="https://github.com/user-attachments/assets/dffb06c7-53c9-4668-a399-8b0e5203007a" />
 
 `wt` removes the friction from git worktrees. It ships as a **CLI** and a
