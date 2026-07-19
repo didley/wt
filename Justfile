@@ -91,7 +91,7 @@ man:
 # whole release pipeline (release.yml) on its own. e.g. `just release
 # patch` or `just release v1.2.0`.
 release bump="patch":
-    ./scripts/release.sh {{ bump }}
+    go run ./cmd/release {{ bump }}
 
 # Build the GUI Flatpak and install it for the current user (needs flatpak-builder; run from the host).
 flatpak:
