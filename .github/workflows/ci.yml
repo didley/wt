@@ -30,6 +30,9 @@ jobs:
           go test ./cmd/...
           ./scripts/check-coverage.sh core.out "$CORE_COVERAGE_MIN" "internal/core"
           ./scripts/check-coverage.sh cli.out "$CLI_COVERAGE_MIN" "internal/cli"
+      - if: matrix.os == 'ubuntu-latest'
+        name: coverage badge up to date
+        run: ./scripts/gen-coverage-badge.sh --check
 
   lint:
     runs-on: ubuntu-latest

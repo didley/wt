@@ -87,6 +87,10 @@ check: test testGui vet
 man:
     go run ./cmd/wt gen-man man
 
+# Regenerate the README coverage badge from scripts/coverage-thresholds.sh.
+coverageBadge:
+    ./scripts/gen-coverage-badge.sh --write
+
 # Cut a release: bump the version tag and push it, which kicks off the
 # whole release pipeline (release.yml) on its own. e.g. `just release
 # patch` or `just release v1.2.0`.
