@@ -87,6 +87,10 @@ check: test testGui vet
 man:
     go run ./cmd/wt gen-man man
 
+# Regenerate the README coverage badge from scripts/coverage-thresholds.sh.
+coverageBadge:
+    ./scripts/gen-coverage-badge.sh --write
+
 # Build the GUI Flatpak and install it for the current user (needs flatpak-builder; run from the host).
 flatpak:
     flatpak-builder --force-clean --user --install \
