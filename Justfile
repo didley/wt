@@ -56,7 +56,7 @@ test:
     trap 'rm -rf "$dir"' EXIT
     go test -coverprofile="$dir/core.out" ./internal/core/...
     go test -coverprofile="$dir/cli.out" ./internal/cli/...
-    go test ./cmd/...
+    go test ./cmd/... ./internal/reviewpr/...
     ./scripts/check-coverage.sh "$dir/core.out" "$CORE_COVERAGE_MIN" "internal/core"
     ./scripts/check-coverage.sh "$dir/cli.out" "$CLI_COVERAGE_MIN" "internal/cli"
 
@@ -92,7 +92,7 @@ man:
 # diff for renamed commands/files other tracked files still reference by
 # their old name. e.g. `just reviewPr 7`.
 reviewPr pr:
-    ./scripts/review-pr.sh {{ pr }}
+    go run ./cmd/review-pr {{ pr }}
 
 # Build the GUI Flatpak and install it for the current user (needs flatpak-builder; run from the host).
 flatpak:
