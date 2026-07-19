@@ -87,6 +87,12 @@ check: test testGui vet
 man:
     go run ./cmd/wt gen-man man
 
+# Cut a release: bump the version tag and push it, which kicks off the
+# whole release pipeline (release.yml) on its own. e.g. `just release
+# patch` or `just release v1.2.0`.
+release bump="patch":
+    ./scripts/release.sh {{ bump }}
+
 # Build the GUI Flatpak and install it for the current user (needs flatpak-builder; run from the host).
 flatpak:
     flatpak-builder --force-clean --user --install \
