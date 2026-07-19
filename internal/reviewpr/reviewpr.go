@@ -107,6 +107,17 @@ func (m *PRMeta) Paths() []string {
 	return paths
 }
 
+// String is a compact one-paragraph summary for the pipeline's report
+// output, rather than a raw %+v struct dump (which repeats the full PR
+// body verbatim and every file path individually).
+func (m *PRMeta) String() string {
+	return fmt.Sprintf(
+		"%s\nby %s: %s -> %s (%s)\n+%d -%d, %d files changed",
+		m.Title, m.Author.Login, m.HeadRefName, m.BaseRefName, m.State,
+		m.Additions, m.Deletions, m.ChangedFiles,
+	)
+}
+
 // FetchPR fetches a PR's metadata and unified diff via `gh`.
 func FetchPR(ctx context.Context, prNumber string) (*PRMeta, string, error) {
 	out, err := exec.CommandContext(ctx, "gh", "pr", "view", prNumber, "--json", //nolint:gosec
