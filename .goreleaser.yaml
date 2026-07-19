@@ -50,9 +50,11 @@ brews:
     homepage: https://github.com/didley/wt
     description: "Ergonomic git worktrees: create, list, switch, rename, remove"
     license: MIT
+    # No generate_completions_from_executable: cobra's default `completion`
+    # command is disabled (see internal/cli/root.go), completions are
+    # generated interactively via `wt setup` instead.
     install: |
       bin.install "wt"
-      generate_completions_from_executable(bin/"wt", "completion")
       man1.install Dir["man/*.1"]
     test: |
       system "#{bin}/wt", "--version"
